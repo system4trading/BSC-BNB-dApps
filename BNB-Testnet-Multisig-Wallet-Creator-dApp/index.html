@@ -1,0 +1,293 @@
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>BNB Testnet Safe Multisig Creator</title>
+	<!-- Include Ethers.js v5 via CDN -->
+	<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" type="text/javascript"></script>
+	<style>
+	body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	background-color: #121214;
+	color: #e2e8f0;
+	max-width: 600px;
+	margin: 40px auto;
+	padding: 20px;
+	}
+	.card {
+	background-color: #1a1b1f;
+	border: 1px solid #2d3139;
+	border-radius: 12px;
+	padding: 24px;
+	box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+	}
+	h2 { margin-top: 0; color: #f3ba2f; } /* BNB Color */
+	.btn {
+	background-color: #f3ba2f;
+	color: #000;
+	border: none;
+	padding: 10px 16px;
+	font-weight: bold;
+	border-radius: 6px;
+	cursor: pointer;
+	width: 100%;
+	font-size: 16px;
+	margin-top: 10px;
+	}
+	.btn:hover { background-color: #e5aa20; }
+	.btn-secondary {
+	background-color: #2d3139;
+	color: #fff;
+	width: auto;
+	font-size: 14px;
+	padding: 6px 12px;
+	margin-bottom: 15px;
+	}
+	.btn-secondary:hover { background-color: #3e4450; }
+	.owner-row {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 10px;
+	}
+	input, select {
+	background-color: #262930;
+	border: 1px solid #3e4450;
+	color: #fff;
+	padding: 10px;
+	border-radius: 6px;
+	box-sizing: border-box;
+	}
+	input[type="text"] { flex-grow: 1; }
+	label { display: block; margin: 15px 0 5px; font-weight: 500; }
+	.btn-remove { background-color: #e53e3e; color: white; border: none; border-radius: 6px; cursor: pointer; padding: 0 12px;}
+	.btn-remove:hover { background-color: #c53030; }
+	#status {
+	margin-top: 20px;
+	padding: 12px;
+	border-radius: 6px;
+	background-color: #262930;
+	word-break: break-all;
+	display: none;
+	}
+	</style>
+	</head>
+	<body>
+	
+	<div class="card">
+	<h2>BNB Testnet Multisig Creator</h2>
+	<p style="color: #a0aec0; font-size: 14px;">Deploy a custom Safe multisig wallet directly on BSC Testnet (Chain 97).</p>
+	
+	<button id="connectBtn" class="btn" style="background-color: #2b6cb0; color: white; margin-bottom: 20px;">Connect Wallet</button>
+	
+	<div id="formContainer" style="display: none;">
+	<label>Owner Addresses</label>
+	<div id="ownersList">
+	<div class="owner-row">
+	<input type="text" class="owner-input" placeholder="0x..." required />
+	<button type="button" class="btn-remove" onclick="removeOwnerRow(this)">X</button>
+	</div>
+	</div>
+	<button type="button" class="btn btn-secondary" onclick="addOwnerRow()">+ Add Owner Address</button>
+	
+	<label for="threshold">Signature Threshold</label>
+	<select id="threshold" style="width: 100%;">
+	<option value="1">1 out of 1 owners</option>
+	</select>
+	
+	<button id="deployBtn" class="btn">Deploy Safe Wallet</button>
+	</div>
+	
+	<div id="status"></div>
+	</div>
+	
+	<script>
+	// Official Safe Proxy Factory address on BNB Smart Chain Testnet (Chain ID 97)
+	const SAFE_PROXY_FACTORY_ADDRESS = "0xC22834581EbC8527d974F8a1c97E1bEA4EF910BC";
+	// Official Safe Singleton Master Copy L2 address on BNB Testnet
+	const SAFE_SINGLETON_ADDRESS = "0x3E5c63644E683549055b9Be8653de26E0B4CD36E";
+	
+	let provider;
+	let signer;
+	
+	const connectBtn = document.getElementById('connectBtn');
+	const formContainer = document.getElementById('formContainer');
+	const deployBtn = document.getElementById('deployBtn');
+	const statusDiv = document.getElementById('status');
+	const thresholdSelect = document.getElementById('threshold');
+	const ownersList = document.getElementById('ownersList');
+	
+	// Connect to MetaMask and switch network if necessary
+	connectBtn.addEventListener('click', async () => {
+	if (typeof window.ethereum === 'undefined') {
+	alert('Please install MetaMask to use this app!');
+	return;
+	}
+	
+	try {
+	showStatus("Connecting to wallet...", "#2b6cb0");
+	provider = new ethers.providers.Web3Provider(window.ethereum);
+	await provider.send("eth_requestAccounts", []);
+	signer = await provider.getSigner();
+	const address = await signer.getAddress();
+	
+	// Enforce BSC Testnet (Chain ID 97)
+	const { chainId } = await provider.getNetwork();
+	if (chainId !== 97) {
+	try {
+	await window.ethereum.request({
+	method: 'wallet_switchEthereumChain',
+	params: [{ chainId: '0x61' }], // 97 in hex
+	});
+	} catch (switchError) {
+	// If network isn't added to Metamask, request to add it
+	if (switchError.code === 4902) {
+	await window.ethereum.request({
+	method: 'wallet_addEthereumChain',
+	params: [{
+	chainId: '0x61',
+	chainName: 'BSC Testnet',
+	nativeCurrency: { name: 'BNB', symbol: 'tBNB', decimals: 18 },
+	rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545/'],
+	blockExplorerUrls: ['https://testnet.bscscan.com']
+	}]
+	});
+	} else {
+	throw switchError;
+	}
+	}
+	}
+	
+	connectBtn.innerText = `Connected: ${address.substring(0,6)}...${address.substring(38)}`;
+	connectBtn.style.backgroundColor = "#2f855a";
+	formContainer.style.display = "block";
+	statusDiv.style.display = "none";
+	
+	// Set the connected wallet as the first default owner
+	document.querySelector('.owner-input').value = address;
+	updateThresholdOptions();
+	
+	} catch (err) {
+	console.error(err);
+	showStatus(`Connection Error: ${err.message}`, "#e53e3e");
+	}
+	});
+	
+	function addOwnerRow() {
+	const row = document.createElement('div');
+	row.className = 'owner-row';
+	row.innerHTML = `
+	<input type="text" class="owner-input" placeholder="0x..." required />
+	<button type="button" class="btn-remove" onclick="removeOwnerRow(this)">X</button>
+	`;
+	ownersList.appendChild(row);
+	updateThresholdOptions();
+	}
+	
+	function removeOwnerRow(button) {
+	const rows = document.querySelectorAll('.owner-row');
+	if(rows.length > 1) {
+	button.parentElement.remove();
+	updateThresholdOptions();
+	} else {
+	alert("You need at least one owner.");
+	}
+	}
+	
+	function updateThresholdOptions() {
+	const count = document.querySelectorAll('.owner-input').length;
+	const currentVal = thresholdSelect.value;
+	thresholdSelect.innerHTML = '';
+	for (let i = 1; i <= count; i++) {
+	const opt = document.createElement('option');
+	opt.value = i;
+	opt.innerText = `${i} out of ${count} owners`;
+	thresholdSelect.appendChild(opt);
+	}
+	if (currentVal <= count) thresholdSelect.value = currentVal;
+	}
+	
+	function showStatus(msg, color) {
+	statusDiv.style.display = "block";
+	statusDiv.style.borderLeft = `4px solid ${color}`;
+	statusDiv.innerText = msg;
+	}
+	
+	// Deploy logic utilizing basic Proxy Factory minimal setup
+	deployBtn.addEventListener('click', async () => {
+	const inputs = document.querySelectorAll('.owner-input');
+	const owners = Array.from(inputs).map(input => input.value.trim());
+	const threshold = parseInt(thresholdSelect.value);
+	
+	// Simple validation
+	for (let addr of owners) {
+	if (!ethers.utils.isAddress(addr)) {
+	alert(`Invalid Ethereum address found: ${addr}`);
+	return;
+	}
+	}
+	
+	try {
+	showStatus("Preparing setup data...", "#f3ba2f");
+	
+	// Minimal ABI required to interact with Safe deployment
+	const safeInterface = new ethers.utils.Interface([
+	"function setup(address[] calldata _owners, uint256 _threshold, address to, bytes calldata data, address fallbackHandler, address paymentToken, uint256 payment, address payable paymentReceiver) external"
+	]);
+	
+	// Encode the setup parameter payload for the Master Copy contract
+	const initializerData = safeInterface.encodeFunctionData("setup", [
+	owners,
+	threshold,
+	ethers.constants.AddressZero, // Optional delegate call contract execution "to"
+	"0x", // Optional delegate call execution "data"
+	"0xf4C849221da2CE36fa9f583B9270a48bF3857500", // Default Fallback Handler on BNB Testnet
+	ethers.constants.AddressZero, // Payment token (Zero address means native BNB)
+	0, // Payment amount
+	ethers.constants.AddressZero // Payment receiver
+	]);
+	
+	const factoryAbi = [
+	"function createProxyWithNonce(address _singleton, bytes memory initializer, uint256 saltNonce) public returns (address proxy)"
+	];
+	
+	const factoryContract = new ethers.Contract(SAFE_PROXY_FACTORY_ADDRESS, factoryAbi, signer);
+	const randomSaltNonce = Math.floor(Math.random() * 1000000000);
+	
+	showStatus("Please sign the deployment transaction in MetaMask...", "#f3ba2f");
+	
+	// Submit deployment to the proxy factory
+	const tx = await factoryContract.createProxyWithNonce(
+	SAFE_SINGLETON_ADDRESS,
+	initializerData,
+	randomSaltNonce
+	);
+	
+	showStatus(`Transaction submitted! Hashing: ${tx.hash}
+	Waiting for block confirmation...`, "#f3ba2f");
+	
+	const receipt = await tx.wait();
+	
+	// Locate the proxy deployment address via emitted event topics
+	// ProxyCreation(address proxy, address singleton)
+	const eventTopic = ethers.utils.id("ProxyCreation(address,address)");
+	const log = receipt.logs.find(l => l.topics[0] === eventTopic);
+	
+	if (log) {
+	const deployedAddress = ethers.utils.defaultAbiCoder.decode(['address', 'address'], log.data);
+	showStatus(`Success?? Wallet deployed at address:
+	${deployedAddress[0]}`, "#2f855a");
+	} else {
+	showStatus(`Deployed, but could not parse address automatically. Tx Hash: ${tx.hash}`, "#2f855a");
+	}
+	
+	} catch (err) {
+	console.error(err);
+	showStatus(`Deployment Failed: ${err.message || err}`, "#e53e3e");
+	}
+	});
+	</script>
+	</body>
+	</html>
+	
+

@@ -1,0 +1,334 @@
+	<!doctype html>
+	<html lang="en">
+	<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>Fixed Rate USDT / INRP — Adapter Analytics</title>
+	<style>
+	body{font-family:Arial,sans-serif;max-width:1120px;margin:auto;padding:20px;background:#f5f6f8;color:#18202a}
+	.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:18px;margin:14px 0}
+	h1,h2,h3{margin-top:0}.row{display:flex;gap:10px;flex-wrap:wrap}.field{flex:1;min-width:190px}
+	input,select,button{width:100%;box-sizing:border-box;padding:10px;margin:5px 0;border:1px solid #bbb;border-radius:6px}
+	button{cursor:pointer;font-weight:600}.primary{background:#222;color:#fff}.danger{background:#7a1f1f;color:#fff}
+	.small{font-size:13px;color:#59636e}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+	.stat{border:1px solid #ddd;border-radius:8px;padding:12px}.stat b{display:block;font-size:17px;margin-top:4px;word-break:break-word}
+	.hidden{display:none!important}.ok{color:#126b2e}.warn{color:#8a5a00}.err{color:#9b1c1c}
+	hr{border:0;border-top:1px solid #eee;margin:16px 0}code{background:#f0f1f2;padding:2px 4px;border-radius:4px}
+	details summary{cursor:pointer;font-weight:700}label{display:block;margin-top:5px}.notice{padding:10px;border-radius:7px;background:#f1f2f4;margin:8px 0}
+	.table-wrap{overflow:auto}.table-wrap table{width:100%;border-collapse:collapse;font-size:13px}.table-wrap th,.table-wrap td{padding:8px;border-bottom:1px solid #eee;text-align:left;white-space:nowrap}.table-wrap th{background:#fafafa}
+	.chartbox{border:1px solid #ddd;border-radius:8px;padding:12px;overflow:auto}.bars{display:flex;align-items:flex-end;gap:8px;height:210px;min-width:560px;padding:10px 4px}.barcol{flex:1;min-width:34px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.bar{width:100%;background:#222;border-radius:4px 4px 0 0;min-height:2px}.barlabel{font-size:10px;color:#59636e;margin-top:5px;overflow:hidden;text-overflow:ellipsis;max-width:55px}.barvalue{font-size:10px;margin-bottom:3px}.muted{color:#59636e}.pill{display:inline-block;padding:3px 7px;border-radius:12px;background:#f0f1f2;font-size:12px}.progress{height:8px;background:#eee;border-radius:8px;overflow:hidden}.progress>div{height:100%;background:#222;width:0}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button,.actions a{width:auto}.linkbtn{display:inline-block;text-decoration:none;border:1px solid #bbb;border-radius:6px;padding:10px 12px;color:#18202a;background:#fff;font-weight:600}.mini{font-size:12px}.good{color:#126b2e}.bad{color:#9b1c1c}.warnbox{background:#fff7df;border:1px solid #ead59b}.dangerbox{background:#fff0f0;border:1px solid #e2bcbc}
+	</style>
+	</head>
+	<body>
+	<h1>Fixed Rate USDT / INRP — Adapter Analytics</h1>
+	<div class="card">
+	<div class="notice"><b>Read-only analytics.</b> No wallet connection or transaction signing is required. This dashboard reads BNB Smart Chain directly and analyzes the adapter's own events and balances. It does not infer users from the underlying V21 pool's <code>Buy</code>/<code>Sell</code> events.</div>
+	<div class="row">
+	<div class="field"><label>Adapter contract address</label><input id="adapterAddress" placeholder="0x..."></div>
+	<div class="field"><label>RPC URL</label><input id="rpcUrl" value="https://bsc-dataseed.binance.org"></div>
+	</div>
+	<div class="row">
+	<div class="field"><label>From block</label><input id="fromBlock" type="number" min="0" placeholder="Deployment block"></div>
+	<div class="field"><label>To block</label><input id="toBlock" type="number" min="0" placeholder="Latest"></div>
+	<div class="field"><label>Chunk size</label><input id="chunkSize" type="number" min="100" max="50000" value="5000"></div>
+	</div>
+	<div class="row">
+	<div class="field"><button id="loadAdapter" class="primary">Load Adapter</button></div>
+	<div class="field"><button id="scanHistory">Scan Adapter History</button></div>
+	<div class="field"><button id="refreshState">Refresh Current State</button></div>
+	<div class="field"><button id="clearCache">Clear Local Analytics Cache</button></div>
+	</div>
+	<div id="status" class="small">Ready.</div>
+	<div class="progress"><div id="progressBar"></div></div>
+	</div>
+	
+	<div class="card"><h2>Adapter Configuration & Current State</h2>
+	<div class="actions">
+	<button id="copyAdapter">Copy Adapter Address</button>
+	<a id="adapterScan" class="linkbtn" href="#" target="_blank" rel="noopener">Open Adapter in BscScan</a>
+	<button id="copyPool">Copy V21 Pool Address</button>
+	<a id="poolScan" class="linkbtn" href="#" target="_blank" rel="noopener">Open V21 Pool in BscScan</a>
+	</div>
+	<div id="overview" class="grid"></div>
+	<div id="stateNotice" class="notice small">Load an adapter to populate current state.</div>
+	</div>
+	
+	<div class="card"><h2>Adapter Activity</h2>
+	<div class="grid">
+	<div class="stat">Swap transactions<b id="swapCount">—</b></div>
+	<div class="stat">Unique users<b id="uniqueUsers">—</b></div>
+	<div class="stat">USDT through adapter<b id="usdtVolume">—</b></div>
+	<div class="stat">INRP through adapter<b id="inrpVolume">—</b></div>
+	<div class="stat">Recovery events<b id="recoveryCount">—</b></div>
+	<div class="stat">Admin events<b id="adminCount">—</b></div>
+	</div>
+	</div>
+	
+	<div class="card"><h2>Adapter Security / Operational Status</h2>
+	<div id="securityOverview" class="grid"></div>
+	</div>
+	
+	<div class="card"><h2>Admin Behavior Analysis</h2>
+	<div id="adminStats" class="grid"></div>
+	<div class="row">
+	<div class="field"><label>Admin actor filter (optional)</label><input id="adminActorFilter" placeholder="0x..."></div>
+	<div class="field"><button id="analyzeAdminActor">Analyze Admin Actor</button></div>
+	<div class="field"><button id="exportAdmin">Export Admin CSV</button></div>
+	</div>
+	<div id="adminActorStats" class="grid"></div>
+	<div class="table-wrap"><table><thead><tr><th>Actor</th><th>Admin events</th><th>Ownership</th><th>Pause</th><th>Blacklist</th><th>Recovery</th></tr></thead><tbody id="adminActorTable"></tbody></table></div>
+	</div>
+	
+	<div class="card"><h2>Admin Activity Timeline</h2>
+	<div class="table-wrap"><table><thead><tr><th>Block</th><th>Time</th><th>Event</th><th>Actor</th><th>Details</th><th>Transaction</th></tr></thead><tbody id="adminTable"></tbody></table></div>
+	</div>
+	
+	<div class="card"><h2>Historical Analytics Summary</h2>
+	<div id="historySummary" class="grid"></div>
+	<div class="small">Historical metrics use only the currently indexed block range and adapter events. They do not infer activity from the V21 pool.</div>
+	</div>
+	
+	<div class="card"><h2>Volume & Swap Analytics</h2>
+	<div class="row"><div class="field"><label>Period</label><select id="period"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></div><div class="field"><label>Metric</label><select id="metric"><option value="usdt">USDT volume</option><option value="tx">Transaction count</option><option value="users">Unique users</option></select></div></div>
+	<div id="volumeChart" class="chartbox">—</div>
+	</div>
+	
+	<div class="card"><h2>Buy / Sell Summary</h2><div id="swapSummary" class="grid"></div>
+	<br><div class="table-wrap"><table><thead><tr><th>Type</th><th>Transactions</th><th>Users</th><th>Input</th><th>Output</th></tr></thead><tbody id="swapSummaryTable"></tbody></table></div>
+	</div>
+	
+	<div class="card"><h2>User Analytics</h2>
+	<div class="row"><div class="field"><label>Wallet address (optional)</label><input id="walletFilter" placeholder="0x..."></div><div class="field"><button id="analyzeWallet">Analyze Wallet</button></div><div class="field"><button id="exportUsers">Export Users CSV</button></div></div>
+	<div id="walletStats" class="grid"></div>
+	<div class="table-wrap" id="usersTableWrap" style="display:none"><table><thead><tr><th>Rank</th><th>Wallet</th><th>Buys</th><th>Sells</th><th>Transactions</th><th>USDT Buy Volume</th><th>USDT Sell Output</th><th>First Activity</th><th>Last Activity</th></tr></thead><tbody id="usersTable"></tbody></table></div>
+	</div>
+	
+	<div class="card"><h2>Adapter Event Explorer</h2>
+	<div class="row"><div class="field"><label>Event</label><select id="eventName"><option value="Swap">Swap</option><option value="OwnershipTransferred">OwnershipTransferred</option><option value="Paused">Paused</option><option value="Unpaused">Unpaused</option><option value="Blacklisted">Blacklisted</option><option value="Unblacklisted">Unblacklisted</option><option value="TokenRescued">TokenRescued</option><option value="BNBRescued">BNBRescued</option></select></div><div class="field"><button id="scanEvent">Read Event Logs</button></div><div class="field"><button id="exportEvents">Export Event CSV</button></div></div>
+	<div id="eventStatus" class="small">—</div>
+	<div class="table-wrap"><table><thead><tr><th>Block</th><th>Time</th><th>Event</th><th>Details</th><th>Transaction</th></tr></thead><tbody id="eventTable"></tbody></table></div>
+	</div>
+	
+	<div class="card"><h2>Linked V21 Pool Status</h2>
+	<div class="notice">The adapter is hard-wired to the V21 pool. This section reads the linked pool for operational context only; pool events are not mixed into adapter user analytics.</div>
+	<div class="actions"><a id="poolScan2" class="linkbtn" href="#" target="_blank" rel="noopener">Open V21 Pool in BscScan</a></div>
+	<div id="poolOverview" class="grid"></div>
+	</div>
+	
+	<div class="card"><h2>Historical Index / Cache & Exports</h2>
+	<div id="cacheStatus" class="small">No local adapter analytics cache loaded.</div>
+	<div class="actions">
+	<button id="exportAll">Export All Adapter Events CSV</button>
+	<button id="exportSwaps">Export Swap History CSV</button>
+	<button id="exportUsers2">Export User Analytics CSV</button>
+	<button id="exportAdmin2">Export Admin History CSV</button>
+	</div>
+	<div class="small">One row represents an adapter event. Historical totals are aggregated from the adapter's <code>Swap</code> events. Current balances and linked V21 state are read from contract storage. The adapter address remains user-supplied and is not hardcoded.</div>
+	</div>
+	
+	<script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
+	<script>
+	const CHAIN_ID=56n;
+	const V21_POOL="0xdfC44A2cb792BA070DF2D75a650C49147EfF6e66";
+	const USDT="0x55d398326f99059fF775485246999027B3197955";
+	const INRP="0x33987b4B97033DfB0943c4eE67C4aaDD146eE580";
+	const CACHE_KEY="fixed_rate_adapter_analytics_v1";
+	const ABI=[
+	"function owner() view returns(address)","function paused() view returns(bool)","function blacklisted(address) view returns(bool)",
+	"function quoteBuy(uint256) view returns(uint256,uint256)","function quoteSell(uint256) view returns(uint256,uint256,uint256)",
+	"event Swap(address indexed user,bool indexed isBuy,uint256 inputAmount,uint256 outputAmount,uint256 minOutput)",
+	"event OwnershipTransferred(address indexed previousOwner,address indexed newOwner)",
+	"event Paused(address indexed account)","event Unpaused(address indexed account)",
+	"event Blacklisted(address indexed account)","event Unblacklisted(address indexed account)",
+	"event TokenRescued(address indexed token,uint256 amount,address indexed to)",
+	"event BNBRescued(uint256 amount,address indexed to)"
+	];
+	const POOL_ABI=[
+	"function owner() view returns(address)","function paused() view returns(bool)","function rateWAD() view returns(uint256)","function buyFeeBps() view returns(uint256)","function sellFeeBps() view returns(uint256)","function feesAccruedUSDT() view returns(uint256)","function availableUSDT() view returns(uint256)","function availableINRP() view returns(uint256)","function getBalances() view returns(uint256,uint256,uint256,uint256)"
+	];
+	const ERC20=["function balanceOf(address) view returns(uint256)","function decimals() view returns(uint8)"];
+	let provider=null,adapter=null,rows=[],latestBlock=0;
+	const $=id=>document.getElementById(id);
+	const short=a=>a?a.slice(0,6)+"..."+a.slice(-4):"";
+	const esc=s=>String(s??"").replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+	const txurl=h=>"https://bscscan.com/tx/"+h;
+	const addr=v=>ethers.getAddress(v);
+	const fmt=(v,d)=>Number(ethers.formatUnits(v,d)).toLocaleString(undefined,{maximumFractionDigits:6});
+	function err(e){return e?.shortMessage||e?.reason||e?.message||String(e)}
+	function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({adapter:$('adapterAddress').value.trim(),from:$('fromBlock').value,to:$('toBlock').value,rows}));}catch(e){}}
+	function loadCache(){try{const x=JSON.parse(localStorage.getItem(CACHE_KEY)||"null");if(x?.rows?.length){rows=x.rows;renderAll();$('cacheStatus').textContent="Loaded "+rows.length+" cached adapter event(s). Scan history to refresh.";}}catch(e){}}
+	function setStatus(s){$('status').textContent=s}
+	function setProgress(v){$('progressBar').style.width=Math.max(0,Math.min(100,v))+"%"}
+	async function connectProvider(){
+	const url=$('rpcUrl').value.trim(); if(!url)throw Error("Enter an RPC URL.");
+	provider=new ethers.JsonRpcProvider(url,{name:'bnb-smart-chain',chainId:56});
+	const n=await provider.getNetwork(); if(n.chainId!==CHAIN_ID)throw Error("RPC is not BNB Smart Chain (chain ID 56).");
+	latestBlock=await provider.getBlockNumber();
+	}
+	function getAdapter(){const a=addr($('adapterAddress').value.trim());return new ethers.Contract(a,ABI,provider)}
+	async function loadAdapter(){
+	try{await connectProvider();adapter=getAdapter();
+	const latest=await provider.getBlockNumber(); $('toBlock').placeholder=String(latest); if(!$('toBlock').value)$('toBlock').value=latest;
+	if(!$('fromBlock').value){$('fromBlock').value=Math.max(0,latest-100000);}
+	await refreshState(); setStatus("Adapter loaded. Ready for history scan.");
+	}catch(e){setStatus("Error: "+err(e));}
+	}
+	async function refreshState(){
+	if(!adapter)await loadAdapter();
+	try{
+	const [owner,paused]=await Promise.all([adapter.owner(),adapter.paused()]);
+	const a=addr($('adapterAddress').value.trim());
+	const [bu,bi,bnb]=await Promise.all([
+	new ethers.Contract(USDT,ERC20,provider).balanceOf(a),
+	new ethers.Contract(INRP,ERC20,provider).balanceOf(a),
+	provider.getBalance(a)
+	]);
+	$('overview').innerHTML=[
+	["Adapter",a],["Owner",owner],["Status",paused?"PAUSED":"ACTIVE"],["V21 Pool",V21_POOL],["Adapter USDT balance",fmt(bu,18)+" USDT"],["Adapter INRP balance",fmt(bi,6)+" INRP"],["Adapter BNB balance",fmt(bnb,18)+" BNB"],["Network","BNB Smart Chain (56)"]
+	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
+	await refreshPool();
+	}catch(e){setStatus("State error: "+err(e));}
+	}
+	async function refreshPool(){
+	try{
+	const p=new ethers.Contract(V21_POOL,POOL_ABI,provider);
+	const [owner,paused,rate,buyFee,sellFee,fees,availU,availI,bal]=await Promise.all([p.owner(),p.paused(),p.rateWAD(),p.buyFeeBps(),p.sellFeeBps(),p.feesAccruedUSDT(),p.availableUSDT(),p.availableINRP(),p.getBalances()]);
+	$('poolOverview').innerHTML=[
+	["Pool owner",owner],["Pool status",paused?"PAUSED":"ACTIVE"],["Fixed rate","1 USDT = "+ethers.formatUnits(rate,18)+" INRP"],["Buy fee",(Number(buyFee)/100).toFixed(2)+"%"],["Sell fee",(Number(sellFee)/100).toFixed(2)+"%"],["USDT balance",fmt(bal[0],18)+" USDT"],["INRP balance",fmt(bal[1],6)+" INRP"],["Accrued fees",fmt(fees,18)+" USDT"],["Available USDT",fmt(availU,18)+" USDT"],["Available INRP",fmt(availI,6)+" INRP"]
+	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
+	}catch(e){$('poolOverview').innerHTML='<div class="notice err">Could not read linked V21 pool: '+esc(err(e))+'</div>'}
+	}
+	async function scanHistory(){
+	try{
+	if(!adapter)await loadAdapter();
+	const latest=await provider.getBlockNumber(); const from=Math.max(0,Number($('fromBlock').value||0)); const to=Math.min(latest,Number($('toBlock').value||latest)); const chunk=Math.max(100,Math.min(50000,Number($('chunkSize').value||5000)));
+	if(from>to)throw Error("From block must be <= To block.");
+	rows=[]; setProgress(0);
+	const total=to-from+1; let done=0;
+	for(let b=from;b<=to;b+=chunk){
+	const e=Math.min(to,b+chunk-1); const logs=await adapter.queryFilter(adapter.filters.Swap(),b,e);
+	const adminLogs=[];
+	for(const name of ['OwnershipTransferred','Paused','Unpaused','Blacklisted','Unblacklisted','TokenRescued','BNBRescued']){
+	const ls=await adapter.queryFilter(adapter.filters[name](),b,e); adminLogs.push(...ls.map(x=>({log:x,name})));
+	}
+	const swapRows=logs.map(x=>({kind:'swap',name:'Swap',blockNumber:x.blockNumber,transactionHash:x.transactionHash,args:x.args,time:null,actor:null}));
+	const ar=adminLogs.map(o=>({kind:'admin',name:o.name,blockNumber:o.log.blockNumber,transactionHash:o.log.transactionHash,args:o.log.args,time:null,actor:null}));
+	rows.push(...swapRows,...ar); done=e-from+1; setProgress(done/total*100); setStatus("Scanning blocks "+b.toLocaleString()+" ? "+e.toLocaleString()+"…");
+	}
+	const unique=[...new Set(rows.map(x=>x.transactionHash))];
+	const cacheTimes=new Map(), txActors=new Map();
+	for(const h of unique){
+	try{
+	const r=rows.find(x=>x.transactionHash===h);
+	const bl=await provider.getBlock(r?.blockNumber);
+	if(bl)cacheTimes.set(h,new Date(Number(bl.timestamp)*1000).toISOString());
+	if(r?.kind==='admin'){
+	const tx=await provider.getTransaction(h);
+	if(tx)txActors.set(h,tx.from);
+	}
+	}catch(e){}
+	}
+	rows.forEach(x=>{x.time=cacheTimes.get(x.transactionHash)||"";x.actor=txActors.get(x.transactionHash)||null;}); rows.sort((a,b)=>a.blockNumber-b.blockNumber);
+	saveCache(); renderAll(); $('cacheStatus').textContent="Indexed "+rows.length+" adapter event(s) from blocks "+from.toLocaleString()+" ? "+to.toLocaleString()+"."; setStatus("Complete. Found "+rows.length+" adapter event(s)."); setProgress(100);
+	}catch(e){setStatus("Scan error: "+err(e));}
+	}
+	function swapRows(){return rows.filter(x=>x.kind==='swap')}
+	function usersMap(){const m={};for(const x of swapRows()){const a=x.args;const u=String(a.user??a[0]).toLowerCase();if(!m[u])m[u]={wallet:u,buys:0,sells:0,tx:0,buyInput:0,sellOutput:0,inrpBought:0,inrpSold:0,first:x.time||"",last:x.time||""};m[u].tx++;if(Boolean(a.isBuy??a[1])){m[u].buys++;m[u].buyInput+=Number(ethers.formatUnits(a.inputAmount??a[2],18));m[u].inrpBought+=Number(ethers.formatUnits(a.outputAmount??a[3],6));}else{m[u].sells++;m[u].sellOutput+=Number(ethers.formatUnits(a.outputAmount??a[3],18));m[u].inrpSold+=Number(ethers.formatUnits(a.inputAmount??a[2],6));}if(!m[u].first||x.time<m[u].first)m[u].first=x.time;if(!m[u].last||x.time>m[u].last)m[u].last=x.time;}return m}
+	function periodKey(t,period){const d=new Date(t);if(period==='month')return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0');if(period==='week'){const x=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));const day=x.getUTCDay()||7;x.setUTCDate(x.getUTCDate()-day+1);return x.toISOString().slice(0,10);}return d.toISOString().slice(0,10)}
+	function buildBuckets(period,metric){const m={};for(const x of swapRows()){const k=periodKey(x.time||new Date(0).toISOString(),period);if(!m[k])m[k]={v:0,tx:0,u:new Set()};m[k].tx++;const a=x.args;m[k].u.add(String(a.user??a[0]).toLowerCase());m[k].v+=Boolean(a.isBuy??a[1])?Number(ethers.formatUnits(a.inputAmount??a[2],18)):Number(ethers.formatUnits(a.outputAmount??a[3],18));}return Object.entries(m).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({k,v:metric==='usdt'?v:metric==='tx'?v.tx:v.u.size}));}
+	function renderChart(){const p=$('period').value,m=$('metric').value,b=buildBuckets(p,m);if(!b.length){$('volumeChart').textContent='No swap data in the indexed history.';return;}const max=Math.max(...b.map(x=>x.v),1);$('volumeChart').innerHTML='<div class="bars">'+b.slice(-40).map(x=>'<div class="barcol"><div class="barvalue">'+x.v.toLocaleString(undefined,{maximumFractionDigits:2})+'</div><div class="bar" style="height:'+Math.max(2,x.v/max*170)+'px"></div><div class="barlabel">'+esc(x.k)+'</div></div>').join('')+'</div>'}
+	function renderSummary(){const s=swapRows();const buys=s.filter(x=>Boolean(x.args.isBuy??x.args[1])),sells=s.filter(x=>!Boolean(x.args.isBuy??x.args[1]));let bi=0,bo=0,si=0,so=0;buys.forEach(x=>{bi+=Number(ethers.formatUnits(x.args.inputAmount??x.args[2],18));bo+=Number(ethers.formatUnits(x.args.outputAmount??x.args[3],6));});sells.forEach(x=>{si+=Number(ethers.formatUnits(x.args.inputAmount??x.args[2],6));so+=Number(ethers.formatUnits(x.args.outputAmount??x.args[3],18));});$('swapSummary').innerHTML=[["Buy transactions",buys.length],["Buy USDT input",bi.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT"],["Buy INRP output",bo.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP"],["Sell transactions",sells.length],["Sell INRP input",si.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP"],["Sell USDT output",so.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT"]].map(x=>'<div class="stat">'+x[0]+'<b>'+x[1]+'</b></div>').join('');$('swapSummaryTable').innerHTML='<tr><td>Buy</td><td>'+buys.length+'</td><td>'+new Set(buys.map(x=>String(x.args.user??x.args[0]).toLowerCase())).size+'</td><td>'+bi.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT</td><td>'+bo.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP</td></tr><tr><td>Sell</td><td>'+sells.length+'</td><td>'+new Set(sells.map(x=>String(x.args.user??x.args[0]).toLowerCase())).size+'</td><td>'+si.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP</td><td>'+so.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT</td></tr>'}
+	function renderUsers(){const m=usersMap(),arr=Object.values(m).sort((a,b)=>b.tx-a.tx);$('usersTable').innerHTML=arr.map((x,i)=>'<tr><td>'+(i+1)+'</td><td><code>'+esc(x.wallet)+'</code></td><td>'+x.buys+'</td><td>'+x.sells+'</td><td>'+x.tx+'</td><td>'+x.buyInput.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT</td><td>'+x.sellOutput.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT</td><td>'+esc(x.first?new Date(x.first).toLocaleString():"—")+'</td><td>'+esc(x.last?new Date(x.last).toLocaleString():"—")+'</td></tr>').join('');$('usersTableWrap').style.display=arr.length?'block':'none';}
+	function renderOverviewStats(){const s=swapRows(),us=[...new Set(s.map(x=>String(x.args.user??x.args[0]).toLowerCase()))];let uv=0,iv=0;s.forEach(x=>{const a=x.args;if(Boolean(a.isBuy??a[1])){uv+=Number(ethers.formatUnits(a.inputAmount??a[2],18));iv+=Number(ethers.formatUnits(a.outputAmount??a[3],6));}else{iv+=Number(ethers.formatUnits(a.inputAmount??a[2],6));uv+=Number(ethers.formatUnits(a.outputAmount??a[3],18));}});$('swapCount').textContent=s.length;$('uniqueUsers').textContent=us.length;$('usdtVolume').textContent=uv.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT';$('inrpVolume').textContent=iv.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP';$('recoveryCount').textContent=rows.filter(x=>['TokenRescued','BNBRescued'].includes(x.name)).length;$('adminCount').textContent=rows.filter(x=>x.kind==='admin').length}
+	function details(x){const a=x.args;if(x.name==='Swap')return (Boolean(a.isBuy??a[1])?'BUY':'SELL')+' | user '+(a.user??a[0])+' | input '+(Boolean(a.isBuy??a[1])?fmt(a.inputAmount??a[2],18)+' USDT':fmt(a.inputAmount??a[2],6)+' INRP')+' | output '+(Boolean(a.isBuy??a[1])?fmt(a.outputAmount??a[3],6)+' INRP':fmt(a.outputAmount??a[3],18)+' USDT');if(x.name==='OwnershipTransferred')return 'previous '+a.previousOwner+' ? new '+a.newOwner;if(x.name==='Paused'||x.name==='Unpaused'||x.name==='Blacklisted'||x.name==='Unblacklisted')return 'account '+a.account;if(x.name==='TokenRescued')return 'token '+a.token+' | raw amount '+a.amount+' | to '+a.to;if(x.name==='BNBRescued')return 'amount '+ethers.formatEther(a.amount)+' BNB | to '+a.to;return JSON.stringify(a)}
+	function adminRows(){return rows.filter(x=>x.kind==='admin')}
+	function adminCounts(){const a=adminRows();return {total:a.length,ownership:a.filter(x=>x.name==='OwnershipTransferred').length,pauses:a.filter(x=>x.name==='Paused').length,unpauses:a.filter(x=>x.name==='Unpaused').length,blacklists:a.filter(x=>x.name==='Blacklisted').length,unblacklists:a.filter(x=>x.name==='Unblacklisted').length,tokenRecovery:a.filter(x=>x.name==='TokenRescued').length,bnbRecovery:a.filter(x=>x.name==='BNBRescued').length}}
+	function renderAdminAnalysis(){
+	const c=adminCounts();
+	$('adminStats').innerHTML=[
+	["Total admin events",c.total],["Ownership transfers",c.ownership],["Pauses",c.pauses],["Unpauses",c.unpauses],
+	["Blacklist additions",c.blacklists],["Blacklist removals",c.unblacklists],["Token recoveries",c.tokenRecovery],["BNB recoveries",c.bnbRecovery]
+	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+x[1]+'</b></div>').join('');
+	const m={};
+	for(const x of adminRows()){const actor=(x.actor||'unknown').toLowerCase();if(!m[actor])m[actor]={actor,events:0,ownership:0,pause:0,blacklist:0,recovery:0};m[actor].events++;if(x.name==='OwnershipTransferred')m[actor].ownership++;if(['Paused','Unpaused'].includes(x.name))m[actor].pause++;if(['Blacklisted','Unblacklisted'].includes(x.name))m[actor].blacklist++;if(['TokenRescued','BNBRescued'].includes(x.name))m[actor].recovery++;}
+	const arr=Object.values(m).sort((a,b)=>b.events-a.events);
+	$('adminActorTable').innerHTML=arr.map(x=>'<tr><td><code>'+esc(x.actor)+'</code></td><td>'+x.events+'</td><td>'+x.ownership+'</td><td>'+x.pause+'</td><td>'+x.blacklist+'</td><td>'+x.recovery+'</td></tr>').join('');
+	}
+	function analyzeAdminActor(){
+	const w=$('adminActorFilter').value.trim().toLowerCase();
+	if(!ethers.isAddress(w)){$('adminActorStats').innerHTML='<div class="notice">Enter a valid admin actor address.</div>';return;}
+	const a=adminRows().filter(x=>(x.actor||'').toLowerCase()===w);
+	$('adminActorStats').innerHTML=[
+	["Actor",w],["Admin events",a.length],["Ownership events",a.filter(x=>x.name==='OwnershipTransferred').length],
+	["Pause/unpause",a.filter(x=>['Paused','Unpaused'].includes(x.name)).length],
+	["Blacklist changes",a.filter(x=>['Blacklisted','Unblacklisted'].includes(x.name)).length],
+	["Recovery events",a.filter(x=>['TokenRescued','BNBRescued'].includes(x.name)).length],
+	["First action",a.length?new Date(a.reduce((p,x)=>x.time<p?x.time:p,a[0].time)).toLocaleString():"—"],
+	["Last action",a.length?new Date(a.reduce((p,x)=>x.time>p?x.time:p,a[0].time)).toLocaleString():"—"]
+	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
+	}
+	function renderSecurity(){
+	if(!adapter){$('securityOverview').innerHTML='<div class="notice">Load an adapter to view operational status.</div>';return;}
+	const a=adminRows().sort((x,y)=>y.blockNumber-x.blockNumber), s=swapRows().sort((x,y)=>y.blockNumber-x.blockNumber);
+	$('securityOverview').innerHTML=[
+	["Indexed event count",rows.length],["Indexed swap count",s.length],["Indexed admin count",a.length],
+	["Latest swap",s.length?new Date(s[0].time).toLocaleString():"—"],["Latest admin action",a.length?new Date(a[0].time).toLocaleString():"—"],
+	["Latest indexed block",rows.length?Math.max(...rows.map(x=>x.blockNumber)).toLocaleString():"—"],["Scan range",($('fromBlock').value||"—")+" ? "+($('toBlock').value||"—")]
+	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
+	}
+	function renderHistorySummary(){
+	const s=swapRows(),a=adminRows(),users=Object.keys(usersMap());
+	const first=rows.length?rows.reduce((p,x)=>x.blockNumber<p.blockNumber?x:p,rows[0]):null;
+	const last=rows.length?rows.reduce((p,x)=>x.blockNumber>p.blockNumber?x:p,rows[0]):null;
+	$('historySummary').innerHTML=[
+	["Indexed events",rows.length],["Swap events",s.length],["Admin events",a.length],["Unique users",users.length],
+	["First indexed block",first?first.blockNumber.toLocaleString():"—"],["Last indexed block",last?last.blockNumber.toLocaleString():"—"],
+	["First event time",first?.time?new Date(first.time).toLocaleString():"—"],["Last event time",last?.time?new Date(last.time).toLocaleString():"—"]
+	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
+	}
+	function renderTables(){
+	const admin=rows.filter(x=>x.kind==='admin').slice().reverse();
+	$('adminTable').innerHTML=admin.map(x=>'<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time?new Date(x.time).toLocaleString():"—")+'</td><td>'+x.name+'</td><td><code>'+esc(x.actor||"—")+'</code></td><td>'+esc(details(x))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank" rel="noopener">'+short(x.transactionHash)+'</a></td></tr>').join('');
+	}
+	function renderAll(){renderOverviewStats();renderSummary();renderUsers();renderChart();renderTables();renderAdminAnalysis();renderSecurity();renderHistorySummary();}
+	
+	async function scanSpecificEvent(){try{if(!adapter)await loadAdapter();const name=$('eventName').value;const from=Math.max(0,Number($('fromBlock').value||0));const to=Math.min(await provider.getBlockNumber(),Number($('toBlock').value||await provider.getBlockNumber()));const logs=await adapter.queryFilter(adapter.filters[name](),from,to);const times={};for(const l of logs){try{const b=await provider.getBlock(l.blockNumber);times[l.transactionHash]=new Date(Number(b.timestamp)*1000).toISOString()}catch(e){}}$('eventTable').innerHTML=logs.slice().reverse().map(l=>{const x={name,blockNumber:l.blockNumber,transactionHash:l.transactionHash,args:l.args,time:times[l.transactionHash]||''};return '<tr><td>'+l.blockNumber.toLocaleString()+'</td><td>'+esc(new Date(x.time).toLocaleString())+'</td><td>'+name+'</td><td>'+esc(details(x))+'</td><td><a href="'+txurl(l.transactionHash)+'" target="_blank" rel="noopener">'+short(l.transactionHash)+'</a></td></tr>'}).join('');$('eventStatus').textContent=logs.length+' '+name+' event(s) found.';}catch(e){$('eventStatus').textContent='Error: '+err(e)}}
+	function analyzeWallet(){const w=$('walletFilter').value.trim().toLowerCase();if(!ethers.isAddress(w)){$('walletStats').innerHTML='<div class="notice">Enter a valid wallet address.</div>';return;}const s=swapRows().filter(x=>String(x.args.user??x.args[0]).toLowerCase()===w);let b=0,bo=0,si=0,so=0; s.forEach(x=>{const a=x.args;if(Boolean(a.isBuy??a[1])){b+=Number(ethers.formatUnits(a.inputAmount??a[2],18));bo+=Number(ethers.formatUnits(a.outputAmount??a[3],6));}else{si+=Number(ethers.formatUnits(a.inputAmount??a[2],6));so+=Number(ethers.formatUnits(a.outputAmount??a[3],18));}});$('walletStats').innerHTML=[["Wallet",w],["Transactions",s.length],["Buys",s.filter(x=>Boolean(x.args.isBuy??x.args[1])).length],["Sells",s.filter(x=>!Boolean(x.args.isBuy??x.args[1])).length],["USDT buy volume",b.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT'],["INRP bought",bo.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP'],["INRP sold",si.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP'],["USDT sell output",so.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT'],["First activity",s.length?new Date(s.reduce((p,x)=>x.time<p?x.time:p,s[0].time)).toLocaleString():"—"],["Last activity",s.length?new Date(s.reduce((p,x)=>x.time>p?x.time:p,s[0].time)).toLocaleString():"—"]].map(x=>'<div class="stat">'+x[0]+'<b>'+esc(x[1])+'</b></div>').join('')}
+	function csv(rows,headers,name){const out=[headers.join(','),...rows.map(r=>headers.map(h=>JSON.stringify(r[h]??'')).join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out],{type:'text/csv'}));a.download=name+'.csv';a.click();URL.revokeObjectURL(a.href)}
+	function adapterAddressValue(){return addr($('adapterAddress').value.trim())}
+	function setScanLinks(){
+	try{
+	const a=adapterAddressValue();
+	const u='https://bscscan.com/address/'+a;
+	$('adapterScan').href=u;
+	}catch(e){$('adapterScan').href='#'}
+	$('poolScan').href='https://bscscan.com/address/'+V21_POOL;
+	$('poolScan2').href='https://bscscan.com/address/'+V21_POOL;
+	}
+	async function copyText(v,label){try{await navigator.clipboard.writeText(v);setStatus(label+" copied.");}catch(e){setStatus("Copy failed: "+err(e));}}
+	
+	$('loadAdapter').onclick=async()=>{await loadAdapter();try{setScanLinks()}catch(e){}};
+	$('refreshState').onclick=()=>refreshState().catch(e=>setStatus('Error: '+err(e)));
+	$('scanHistory').onclick=scanHistory;
+	$('period').onchange=renderChart;
+	$('metric').onchange=renderChart;
+	$('scanEvent').onclick=scanSpecificEvent;
+	$('analyzeWallet').onclick=analyzeWallet;
+	$('analyzeAdminActor').onclick=analyzeAdminActor;
+	$('clearCache').onclick=()=>{localStorage.removeItem(CACHE_KEY);rows=[];renderAll();$('cacheStatus').textContent='Local analytics cache cleared.'};
+	$('copyAdapter').onclick=()=>{try{copyText(adapterAddressValue(),'Adapter address')}catch(e){setStatus('Enter a valid Adapter address first.')}};
+	$('copyPool').onclick=()=>copyText(V21_POOL,'V21 pool address');
+	$('exportEvents').onclick=()=>csv(rows.map(x=>({block:x.blockNumber,time:x.time,event:x.name,actor:x.actor||'',details:details(x),tx:x.transactionHash})),['block','time','event','actor','details','tx'],'adapter-events');
+	$('exportUsers').onclick=()=>{const a=Object.values(usersMap());csv(a,['wallet','buys','sells','tx','buyInput','sellOutput','inrpBought','inrpSold','first','last'],'adapter-users')};
+	$('exportAll').onclick=()=>csv(rows.map(x=>({block:x.blockNumber,time:x.time,event:x.name,kind:x.kind,actor:x.actor||'',details:details(x),tx:x.transactionHash})),['block','time','event','kind','actor','details','tx'],'adapter-all-events');
+	$('exportSwaps').onclick=()=>csv(swapRows().map(x=>{const a=x.args;return {block:x.blockNumber,time:x.time,user:a.user??a[0],type:Boolean(a.isBuy??a[1])?'BUY':'SELL',input:a.inputAmount??a[2],output:a.outputAmount??a[3],minOutput:a.minOutput??a[4],tx:x.transactionHash}}),['block','time','user','type','input','output','minOutput','tx'],'adapter-swaps');
+	$('exportUsers2').onclick=()=>{const a=Object.values(usersMap());csv(a,['wallet','buys','sells','tx','buyInput','sellOutput','inrpBought','inrpSold','first','last'],'adapter-users')};
+	$('exportAdmin').onclick=()=>csv(adminRows().map(x=>({block:x.blockNumber,time:x.time,event:x.name,actor:x.actor||'',details:details(x),tx:x.transactionHash})),['block','time','event','actor','details','tx'],'adapter-admin');
+	$('exportAdmin2').onclick=()=>csv(adminRows().map(x=>({block:x.blockNumber,time:x.time,event:x.name,actor:x.actor||'',details:details(x),tx:x.transactionHash})),['block','time','event','actor','details','tx'],'adapter-admin');
+	$('adapterAddress').addEventListener('change',()=>{try{setScanLinks()}catch(e){}});
+	loadCache();
+	</script>
+	</body>
+	</html>
+	
+

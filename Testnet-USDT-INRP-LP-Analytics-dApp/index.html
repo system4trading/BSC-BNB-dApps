@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fixed Rate USDT / INRP — Pool Analytics</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
+<style>
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;background:#f5f7fa;color:#17202a}
+.wrap{max-width:1250px;margin:auto;padding:20px}.card{background:#fff;border:1px solid #d9dee5;border-radius:12px;padding:18px;margin:14px 0}
+h1,h2,h3{margin-top:0}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{flex:1;min-width:180px}
+label{display:block;font-size:13px;font-weight:700;margin:6px 0}input,select,button{width:100%;padding:10px;border:1px solid #bbc4cd;border-radius:7px;background:#fff;font:inherit}
+button{cursor:pointer;font-weight:700}.primary{background:#20252b;color:white}.toolbar{display:flex;gap:8px;flex-wrap:wrap}.toolbar>*{width:auto}
+.notice{padding:10px 12px;border-radius:8px;background:#eef2f5;margin:8px 0}.small{font-size:12px;color:#69747e}.err{color:#a01b1b}.warn{color:#8a5a00}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.stat{border:1px solid #e0e4e8;border-radius:9px;padding:12px;background:#fafbfc}.stat span{display:block;color:#68737d;font-size:13px}.stat b{display:block;margin-top:5px;font-size:17px;word-break:break-word}
+.table-wrap{overflow:auto;border:1px solid #e0e4e8;border-radius:8px;margin-top:10px}table{border-collapse:collapse;width:100%;min-width:900px}th,td{padding:9px;border-bottom:1px solid #e7eaee;text-align:left;font-size:13px}th{background:#f6f8fa}
+a{color:#1559a6;text-decoration:none}.code{font-family:monospace;word-break:break-all}.badge{padding:3px 7px;border-radius:12px;background:#eef1f4;font-weight:700;font-size:12px}.buy{background:#e7f6eb}.sell{background:#fff0e8}
+.progress{height:9px;background:#e5e9ed;border-radius:9px;overflow:hidden}.progress div{height:100%;width:0;background:#555}
+@media(max-width:700px){.wrap{padding:10px}.card{padding:13px}}
+
+.chartbox{min-height:260px;border:1px solid #ddd;border-radius:10px;padding:12px;overflow:auto}
+.chartrow{display:flex;align-items:flex-end;gap:8px;min-height:220px}
+.chartbar{min-width:28px;background:currentColor;border-radius:5px 5px 0 0;position:relative}
+.chartbar span{position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap}
+.chartbar em{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:11px;font-style:normal}
+
+.ba-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.ba-table-scroll{overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Fixed Rate USDT / INRP — Pool Analytics</h1>
+<div class="notice"><b>Phase A — Read-only analytics.</b> No wallet connection or transaction signing is required. The dashboard reads BNB Smart Chain Testnet directly.</div>
+
+<div class="card">
+<h2>Pool Configuration</h2>
+<div class="row">
+<div class="field"><label>Pool contract address</label><input id="pool" placeholder="0x..."></div>
+<div class="field"><label>Deployment block (recommended for All History)</label><input id="deploy" type="number" min="0" placeholder="e.g. 45000000"></div>
+<div class="field"><label>RPC URL</label><input id="rpc" value="https://data-seed-prebsc-1-s1.bnbchain.org:8545"></div>
+</div>
+<div class="toolbar">
+<button class="primary" id="load">Load Pool</button>
+<button id="copy">Copy Contract Address</button>
+<a id="scan" style="display:none;padding:10px;border:1px solid #bbc4cd;border-radius:7px" target="_blank" rel="noopener">Open BscScan</a>
+</div>
+<div id="status" class="small"></div>
+</div>
+
+<div class="card" id="overviewCard" style="display:none">
+<h2>Current Pool Overview</h2><div id="overview" class="grid"></div>
+</div>
+
+
+
+<div class="card" id="phaseBAdvancedCard" style="display:none">
+<h2>Phase B — Advanced Analytics</h2>
+<div class="notice">Advanced metrics are calculated from the historical pool events currently loaded in this browser. Run <b>Load Pool + Scan Entire History</b> for all-time results.</div>
+
+<div class="grid">
+  <div class="stat"><div class="label">Unique Trading Wallets</div><div class="value" id="baUniqueWallets">0</div></div>
+  <div class="stat"><div class="label">Top Wallet</div><div class="value code" id="baTopWallet">—</div></div>
+  <div class="stat"><div class="label">Total Buy Volume</div><div class="value" id="baBuyVolume">0 USDT</div></div>
+  <div class="stat"><div class="label">Total Sell Volume</div><div class="value" id="baSellVolume">0 USDT</div></div>
+  <div class="stat"><div class="label">Fee Revenue</div><div class="value" id="baFeeRevenue">0 USDT</div></div>
+</div>
+
+<div class="card">
+<h3>Volume & Buy/Sell Analytics</h3>
+<div class="row">
+  <div class="field"><label>Time bucket</label>
+    <select id="baVolumeBucket"><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select>
+  </div>
+  <div class="field"><label>Metric</label>
+    <select id="baVolumeMetric"><option value="volume">USDT volume</option><option value="count">Transaction count</option><option value="fees">Fee revenue</option></select>
+  </div>
+</div>
+<div class="chartbox" id="baVolumeChart"></div>
+</div>
+
+<div class="card">
+<h3>Fee-Revenue Analytics</h3>
+<div class="grid">
+  <div class="stat"><div class="label">Buy Fees</div><div class="value" id="baBuyFees">0 USDT</div></div>
+  <div class="stat"><div class="label">Sell Fees</div><div class="value" id="baSellFees">0 USDT</div></div>
+  <div class="stat"><div class="label">Total Fees</div><div class="value" id="baTotalFees">0 USDT</div></div>
+</div>
+<div class="chartbox" id="baFeeChart"></div>
+</div>
+
+<div class="card">
+<h3>Liquidity History</h3>
+<div class="grid">
+  <div class="stat"><div class="label">USDT Deposited</div><div class="value" id="baUsdtDeposits">0</div></div>
+  <div class="stat"><div class="label">USDT Withdrawn</div><div class="value" id="baUsdtWithdrawals">0</div></div>
+  <div class="stat"><div class="label">INRP Deposited</div><div class="value" id="baInrpDeposits">0</div></div>
+  <div class="stat"><div class="label">INRP Withdrawn</div><div class="value" id="baInrpWithdrawals">0</div></div>
+</div>
+<div class="chartbox" id="baLiquidityChart"></div>
+</div>
+
+<div class="card">
+<h3>Fixed-Rate History</h3>
+<div class="chartbox" id="baRateChart"></div>
+<div class="table-wrap" id="baRateTableWrap" style="display:none">
+<table><thead><tr><th>Block</th><th>Time</th><th>Old Rate</th><th>New Rate</th><th>Transaction</th></tr></thead>
+<tbody id="baRateTable"></tbody></table>
+</div>
+</div>
+
+<div class="card">
+<h3>Unique Wallets & Top Trading Wallets</h3>
+<div class="table-wrap">
+<table><thead><tr><th>Rank</th><th>Wallet</th><th>Buys</th><th>Sells</th><th>Total Transactions</th><th>USDT Buy Volume</th><th>USDT Sell Output</th><th>Fees</th></tr></thead>
+<tbody id="baTopWallets"></tbody></table>
+</div>
+</div>
+
+<div class="card">
+<h3>Wallet Activity Summary</h3>
+<div class="row">
+  <div class="field"><label>Wallet address</label><input id="baWallet" placeholder="0x..."></div>
+</div>
+<div class="toolbar"><button class="primary" id="baAnalyzeWallet">Analyze Wallet</button></div>
+<div id="baWalletStatus" class="small"></div>
+<div class="grid">
+  <div class="stat"><div class="label">First Activity</div><div class="value" id="baFirstActivity">—</div></div>
+  <div class="stat"><div class="label">Last Activity</div><div class="value" id="baLastActivity">—</div></div>
+  <div class="stat"><div class="label">Wallet Buys</div><div class="value" id="baWalletBuys">0</div></div>
+  <div class="stat"><div class="label">Wallet Sells</div><div class="value" id="baWalletSells">0</div></div>
+  <div class="stat"><div class="label">Wallet Fees</div><div class="value" id="baWalletFees">0 USDT</div></div>
+</div>
+</div>
+
+<div class="card">
+<h3>Admin Activity Timeline</h3>
+<div class="table-wrap">
+<table><thead><tr><th>Block</th><th>Time</th><th>Event</th><th>Details</th><th>Transaction</th></tr></thead>
+<tbody id="baAdminTimeline"></tbody></table>
+</div>
+</div>
+
+<div class="card">
+<h3>Historical Index / Cache</h3>
+<div class="row">
+  <div class="field"><label>Indexed through block</label><input id="baIndexedThrough" readonly></div>
+  <div class="field"><label>Indexed events</label><input id="baIndexedEvents" readonly></div>
+</div>
+<div class="toolbar">
+<button id="baIndexNew">Scan & Index New Events</button>
+<button id="baClearCache">Clear Local Analytics Cache</button>
+</div>
+<div id="baIndexStatus" class="small"></div>
+</div>
+
+<div class="card">
+<h3>Advanced Exports</h3>
+<div class="toolbar">
+<button id="baExportWallets">Export Top Wallets CSV</button>
+<button id="baExportRates">Export Rate History CSV</button>
+<button id="baExportLiquidity">Export Liquidity History CSV</button>
+<button id="baExportAdmin">Export Admin Timeline CSV</button>
+</div>
+</div>
+</div>
+
+<div class="card" id="phaseBCard" style="display:none">
+<h2>Phase B — Analytics & Reporting</h2>
+
+<div class="grid">
+  <div class="stat"><div class="label">Total Events</div><div class="value" id="bTotalEvents">—</div></div>
+  <div class="stat"><div class="label">Buy Events</div><div class="value" id="bBuyCount">—</div></div>
+  <div class="stat"><div class="label">Sell Events</div><div class="value" id="bSellCount">—</div></div>
+  <div class="stat"><div class="label">Admin/Audit Events</div><div class="value" id="bAdminCount">—</div></div>
+</div>
+
+<div class="card">
+<h3>Wallet Analytics</h3>
+<div class="row">
+  <div class="field"><label>Wallet address</label><input id="bWallet" placeholder="0x..."></div>
+  <div class="field"><label>From block</label><input id="bWalletFrom" type="number" min="0"></div>
+  <div class="field"><label>To block</label><input id="bWalletTo" type="number" min="0"></div>
+</div>
+<div class="toolbar">
+<button class="primary" id="bAnalyzeWallet">Analyze Wallet</button>
+<button id="bClearWallet">Clear</button>
+</div>
+<div id="bWalletStatus" class="small"></div>
+<div class="grid">
+  <div class="stat"><div class="label">Buys</div><div class="value" id="bWBuys">0</div></div>
+  <div class="stat"><div class="label">Sells</div><div class="value" id="bWSells">0</div></div>
+  <div class="stat"><div class="label">USDT Buy Volume</div><div class="value" id="bWBuyVol">0</div></div>
+  <div class="stat"><div class="label">USDT Sell Output</div><div class="value" id="bWSellVol">0</div></div>
+  <div class="stat"><div class="label">Fees Paid</div><div class="value" id="bWFees">0</div></div>
+</div>
+<div class="table-wrap" id="bWalletTableWrap" style="display:none">
+<table><thead><tr><th>Block</th><th>Time</th><th>Type</th><th>Input</th><th>Fee</th><th>Output</th><th>Tx</th></tr></thead>
+<tbody id="bWalletTable"></tbody></table>
+</div>
+</div>
+
+<div class="card">
+<h3>Swap Statistics</h3>
+<div class="grid">
+  <div class="stat"><div class="label">Total USDT Buy Input</div><div class="value" id="bUsdtBuy">0</div></div>
+  <div class="stat"><div class="label">Total INRP Bought</div><div class="value" id="bInrpBought">0</div></div>
+  <div class="stat"><div class="label">Total INRP Sold</div><div class="value" id="bInrpSold">0</div></div>
+  <div class="stat"><div class="label">Total USDT Sell Output</div><div class="value" id="bUsdtSold">0</div></div>
+  <div class="stat"><div class="label">Total Swap Fees</div><div class="value" id="bSwapFees">0</div></div>
+</div>
+<div class="toolbar">
+<button id="bExportSwaps">Export Swap CSV</button>
+<button id="bExportEvents">Export Events CSV</button>
+<button id="bExportWallet">Export Wallet CSV</button>
+</div>
+</div>
+
+<div class="card">
+<h3>Liquidity & Admin Summary</h3>
+<div class="grid">
+  <div class="stat"><div class="label">USDT Deposits</div><div class="value" id="bUsdtDep">0</div></div>
+  <div class="stat"><div class="label">INRP Deposits</div><div class="value" id="bInrpDep">0</div></div>
+  <div class="stat"><div class="label">USDT Withdrawals</div><div class="value" id="bUsdtWd">0</div></div>
+  <div class="stat"><div class="label">INRP Withdrawals</div><div class="value" id="bInrpWd">0</div></div>
+  <div class="stat"><div class="label">Fees Withdrawn</div><div class="value" id="bFeesWd">0</div></div>
+</div>
+<div id="bAdminSummary" class="small"></div>
+</div>
+
+<div class="card">
+<h3>Activity Over Time</h3>
+<div class="row">
+  <div class="field"><label>Bucket</label>
+    <select id="bBucket"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select>
+  </div>
+</div>
+<div id="bChart" class="chartbox"></div>
+</div>
+</div>
+
+<div class="card" id="historyControlsCard" style="display:none">
+<h2>Historical Analytics</h2>
+<div class="notice"><b>Historical scans are manual.</b> Load Pool loads current statistics only. Use one of the buttons below to scan historical blockchain events.</div>
+<div class="row">
+<div class="field"><label>From block</label><input id="histFrom" type="number" min="0" placeholder="Deployment block"></div>
+<div class="field"><label>To block</label><input id="histTo" type="number" min="0" placeholder="Latest block"></div>
+<div class="field"><label>Wallet filter (optional)</label><input id="histWallet" placeholder="0x..."></div>
+</div>
+<div class="toolbar">
+<button class="primary" id="scanSwapHistory">Scan Swap History</button>
+<button class="primary" id="scanAdminHistory">Scan Admin History</button>
+<button class="primary" id="scanAllHistory">Scan All Events</button>
+<button class="primary" id="loadAndScanHistory">Load Pool + Scan Entire History</button>
+</div>
+<div class="notice small"><b>Load Pool + Scan Entire History</b> loads the current pool state first, then scans from the pool deployment block through the latest block. The manual From/To controls remain available for targeted scans.</div>
+<div class="notice small"><b>Scan Swap History</b> = Buy/Sell activity. <b>Scan Admin History</b> = administrative/audit activity. <b>Scan All Events</b> = every supported pool event.</div>
+<div class="progress"><div id="historyBar"></div></div>
+<div id="historyStatus" class="small"></div>
+</div>
+
+<div class="card" id="swapCard" style="display:none">
+<h2>Swap History & Analytics</h2>
+<div class="row">
+<div class="field"><label>From block</label><input id="sf" type="number" min="0"></div>
+<div class="field"><label>To block</label><input id="st" type="number" min="0"></div>
+<div class="field"><label>Wallet filter (optional)</label><input id="sw" placeholder="0x..."></div>
+<div class="field"><label>Type</label><select id="stype"><option value="ALL">All</option><option value="Buy">Buy</option><option value="Sell">Sell</option></select></div>
+</div>
+<div class="toolbar"><button class="primary" id="searchSwaps">Search Swaps</button><button id="exportSwaps">Export CSV</button></div>
+<div id="swapStatus" class="small"></div><div id="swapTotals" class="grid"></div>
+<div class="table-wrap" id="swapTableWrap" style="display:none"><table><thead><tr><th>Block</th><th>Time</th><th>Type</th><th>Wallet</th><th>Input</th><th>Fee</th><th>Output</th><th>Transaction</th></tr></thead><tbody id="swapTable"></tbody></table></div> 
+</div>
+
+<div class="card" id="eventsCard" style="display:none">
+<h2>Event Explorer</h2>
+<div class="notice">A block range is a search window. Each result row is an individual on-chain event. All-history scans are performed in chunks.</div>
+<div class="row">
+<div class="field"><label>Mode</label><select id="emode"><option value="recent">Recent</option><option value="range">Block Range</option><option value="specific">Specific Block</option><option value="all">All History</option></select></div>
+<div class="field"><label>Event</label><select id="etype">
+<option>ALL</option><option>Buy</option><option>Sell</option><option>SwapLimitsChecked</option><option>AdminAction</option><option>RateUpdated</option><option>FeesUpdated</option><option>USDTDeposited</option><option>INRPDeposited</option><option>LiquidityDeposited</option><option>USDTWithdrawn</option><option>INRPWithdrawn</option><option>LiquidityWithdrawn</option><option>FeesWithdrawn</option><option>OwnershipTransferred</option><option>Paused</option><option>Unpaused</option><option>Blacklisted</option><option>Unblacklisted</option><option>TokenRescued</option><option>BNBRescued</option>
+</select></div>
+<div class="field"><label>From block</label><input id="ef" type="number"></div>
+<div class="field"><label>To block</label><input id="et" type="number"></div>
+<div class="field"><label>Specific / Recent blocks</label><input id="es" type="number" placeholder="5000"></div>
+<div class="field"><label>Chunk size</label><input id="chunk" type="number" min="100" max="10000" value="2000"></div>
+</div>
+<div class="toolbar"><button class="primary" id="searchEvents">Search Events</button><button id="exportEvents">Export CSV</button><button id="stop">Stop Scan</button></div>
+<div class="progress"><div id="bar"></div></div><div id="eventStatus" class="small"></div>
+<div class="table-wrap" id="eventTableWrap" style="display:none"><table><thead><tr><th>Block</th><th>Time</th><th>Event</th><th>Details</th><th>Transaction</th></tr></thead><tbody id="eventTable"></tbody></table></div>
+</div>
+
+<div class="card" id="adminCard" style="display:none">
+<h2>Admin / Audit History</h2>
+<div class="row">
+<div class="field"><label>From block</label><input id="af" type="number"></div>
+<div class="field"><label>To block</label><input id="at" type="number"></div>
+<div class="field"><label>Event</label><select id="atype"><option>AdminAction</option><option>RateUpdated</option><option>FeesUpdated</option><option>OwnershipTransferred</option><option>Paused</option><option>Unpaused</option><option>Blacklisted</option><option>Unblacklisted</option></select></div>
+</div>
+<button class="primary" id="searchAdmin">Load Admin History</button><div id="adminStatus" class="small"></div>
+<div class="table-wrap" id="adminTableWrap" style="display:none"><table><thead><tr><th>Block</th><th>Time</th><th>Event</th><th>Details</th><th>Transaction</th></tr></thead><tbody id="adminTable"></tbody></table></div>
+</div>
+
+<div class="card"><details open><summary>How history is interpreted</summary><p class="small">A history row is one individual event from a particular transaction/block. A block range is only the search window. Totals such as daily or all-time volume are calculated by aggregating individual Buy/Sell events. Current balances, fees, rate and pause state are read from current contract storage.</p></details></div>
+</div>
+
+<script>
+const ABI=[
+"function getPoolInfo() view returns(address,address,address,uint256,uint256,uint256,uint256,uint256,uint256,uint256,bool)",
+"function owner() view returns(address)",
+"event OwnershipTransferred(address indexed previousOwner,address indexed newOwner)",
+"event Paused(address indexed account)","event Unpaused(address indexed account)",
+"event Blacklisted(address indexed account)","event Unblacklisted(address indexed account)",
+"event RateUpdated(uint256 oldRateWAD,uint256 newRateWAD)",
+"event FeesUpdated(uint256 oldBuyFeeBps,uint256 newBuyFeeBps,uint256 oldSellFeeBps,uint256 newSellFeeBps)",
+"event FeesWithdrawn(address indexed to,uint256 amount)",
+"event Buy(address indexed user,uint256 usdtIn,uint256 usdtFee,uint256 inrpOut)",
+"event Sell(address indexed user,uint256 inrpIn,uint256 usdtGross,uint256 usdtFee,uint256 usdtOut)",
+"event SwapLimitsChecked(address indexed user,bool indexed isBuy,uint256 inputAmount,uint256 quotedOutput,uint256 minOutput)",
+"event AdminAction(address indexed admin,bytes32 indexed action,address indexed target,uint256 amount)",
+"event USDTDeposited(address indexed from,uint256 amount)",
+"event INRPDeposited(address indexed from,uint256 amount)",
+"event LiquidityDeposited(address indexed from,uint256 usdtAmount,uint256 inrpAmount)",
+"event USDTWithdrawn(address indexed to,uint256 amount)",
+"event INRPWithdrawn(address indexed to,uint256 amount)",
+"event LiquidityWithdrawn(address indexed to,uint256 usdtAmount,uint256 inrpAmount)",
+"event FeesWithdrawn(address indexed to,uint256 amount)",
+"event TokenRescued(address indexed token,address indexed to,uint256 amount)",
+"event BNBRescued(address indexed to,uint256 amount)"
+];
+
+let provider,contract,address="",stop=false,lastSwaps=[],lastEvents=[];
+const $=x=>document.getElementById(x);
+const short=a=>{try{a=ethers.getAddress(a);return a.slice(0,6)+"..."+a.slice(-4)}catch{return String(a)}};
+const fmt=(v,d)=>ethers.formatUnits(v,d);
+const txurl=h=>"https://testnet.bscscan.com/tx/"+h;
+const err=e=>e?.shortMessage||e?.reason||e?.message||String(e);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cache=new Map();
+
+async function init(){
+ provider=new ethers.JsonRpcProvider($("rpc").value.trim()||"https://data-seed-prebsc-1-s1.bnbchain.org:8545",{name:"tbnb",chainId:97});
+ const n=await provider.getNetwork();if(n.chainId!==56n)throw Error("RPC is not BNB Smart Chain Testnet.");
+}
+
+let phaseBRows=[];
+let phaseBWalletRows=[];
+
+
+let phaseBIndexedThrough=0;
+let phaseBCacheKey="poolAnalyticsPhaseB:"+location.host;
+
+function baNum(v,decimals){
+  try{return Number(ethers.formatUnits(v,decimals));}catch(_){return 0;}
+}
+function baBucketKey(time,bucket){
+  const d=new Date(time);
+  if(bucket==="month") return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0");
+  if(bucket==="week"){
+    const z=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));
+    z.setUTCDate(z.getUTCDate()-z.getUTCDay());
+    return z.toISOString().slice(0,10);
+  }
+  return d.toISOString().slice(0,10);
+}
+function baBarChart(elId,series){
+  const el=$(elId);
+  if(!series.length){el.innerHTML="<div class='small'>No historical data available. Run the full-history scan first.</div>";return;}
+  const vals=series.map(x=>x.value),max=Math.max(...vals,1);
+  const shown=series.slice(-60);
+  el.innerHTML='<div class="chartrow">'+shown.map(x=>'<div class="chartbar" style="height:'+Math.max(4,180*x.value/max)+'px"><em>'+x.value.toLocaleString(undefined,{maximumFractionDigits:3})+'</em><span>'+x.key+'</span></div>').join("")+'</div>';
+}
+function baBuildBuckets(rows,bucket,metric){
+  const m={};
+  rows.filter(x=>x.name==="Buy"||x.name==="Sell").forEach(x=>{
+    const k=baBucketKey(x.time,bucket);
+    if(!m[k])m[k]={volume:0,count:0,fees:0};
+    m[k].count++;
+    if(x.name==="Buy"){m[k].volume+=baNum(x.args.usdtIn,18);m[k].fees+=baNum(x.args.usdtFee,18);}
+    else {m[k].volume+=baNum(x.args.usdtOut,18);m[k].fees+=baNum(x.args.usdtFee,18);}
+  });
+  return Object.entries(m).sort().map(([key,v])=>({key,value:v[metric]}));
+}
+function baAdvancedAnalyze(rows){
+  if(!rows||!rows.length){$("phaseBAdvancedCard").style.display="block";return;}
+  const swaps=rows.filter(x=>x.name==="Buy"||x.name==="Sell");
+  const wallets={};
+  let buyVol=0,sellVol=0,buyFees=0,sellFees=0;
+  swaps.forEach(x=>{
+    const w=String(x.args.user).toLowerCase();
+    if(!wallets[w])wallets[w]={wallet:w,buys:0,sells:0,tx:0,buyVol:0,sellVol:0,fees:0,first:x.time,last:x.time};
+    const a=wallets[w];a.tx++;a.last=x.time;if(new Date(x.time)<new Date(a.first))a.first=x.time;
+    if(x.name==="Buy"){a.buys++;a.buyVol+=baNum(x.args.usdtIn,18);buyVol+=baNum(x.args.usdtIn,18);buyFees+=baNum(x.args.usdtFee,18);}
+    else {a.sells++;a.sellVol+=baNum(x.args.usdtOut,18);sellVol+=baNum(x.args.usdtOut,18);sellFees+=baNum(x.args.usdtFee,18);}
+    a.fees+=baNum(x.args.usdtFee,18);
+  });
+  const ranked=Object.values(wallets).sort((a,b)=>b.tx-a.tx);
+  $("baUniqueWallets").textContent=ranked.length.toLocaleString();
+  $("baTopWallet").textContent=ranked[0]?short(ranked[0].wallet):"—";
+  $("baBuyVolume").textContent=buyVol.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("baSellVolume").textContent=sellVol.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("baFeeRevenue").textContent=(buyFees+sellFees).toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("baBuyFees").textContent=buyFees.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("baSellFees").textContent=sellFees.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("baTotalFees").textContent=(buyFees+sellFees).toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+
+  const renderV=()=>baBarChart("baVolumeChart",baBuildBuckets(rows,$("baVolumeBucket").value,$("baVolumeMetric").value));
+  renderV(); $("baVolumeBucket").onchange=renderV;$("baVolumeMetric").onchange=renderV;
+  baBarChart("baFeeChart",baBuildBuckets(rows,"day","fees"));
+
+  const adminNames=new Set(["AdminAction","RateUpdated","FeesUpdated","OwnershipTransferred","Paused","Unpaused","Blacklisted","Unblacklisted","USDTDeposited","INRPDeposited","LiquidityDeposited","USDTWithdrawn","INRPWithdrawn","LiquidityWithdrawn","FeesWithdrawn","TokenRescued","BNBRescued"]);
+  const admin=rows.filter(x=>adminNames.has(x.name));
+  let ud=0,uw=0,id=0,iw=0;
+  admin.forEach(x=>{
+    if(x.name==="USDTDeposited")ud+=baNum(x.args.amount,18);
+    if(x.name==="INRPDeposited")id+=baNum(x.args.amount,6);
+    if(x.name==="LiquidityDeposited"){ud+=baNum(x.args.usdtAmount,18);id+=baNum(x.args.inrpAmount,6);}
+    if(x.name==="USDTWithdrawn")uw+=baNum(x.args.amount,18);
+    if(x.name==="INRPWithdrawn")iw+=baNum(x.args.amount,6);
+    if(x.name==="LiquidityWithdrawn"){uw+=baNum(x.args.usdtAmount,18);iw+=baNum(x.args.inrpAmount,6);}
+  });
+  $("baUsdtDeposits").textContent=ud.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("baUsdtWithdrawals").textContent=uw.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("baInrpDeposits").textContent=id.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP";
+  $("baInrpWithdrawals").textContent=iw.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP";
+  baBarChart("baLiquidityChart",admin.filter(x=>["USDTDeposited","INRPDeposited","LiquidityDeposited","USDTWithdrawn","INRPWithdrawn","LiquidityWithdrawn"].includes(x.name)).map(x=>({key:x.blockNumber,value:x.name.includes("Withdraw")?0:1})));
+
+  const rates=rows.filter(x=>x.name==="RateUpdated");
+  $("baRateTable").innerHTML=rates.map(x=>'<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td>'+esc(fmt(x.args.oldRateWAD,18))+'</td><td>'+esc(fmt(x.args.newRateWAD,18))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>').join("");
+  $("baRateTableWrap").style.display=rates.length?"block":"none";
+  baBarChart("baRateChart",rates.map(x=>({key:x.blockNumber,value:baNum(x.args.newRateWAD,18)})));
+
+  $("baTopWallets").innerHTML=ranked.slice(0,50).map((x,i)=>'<tr><td>'+(i+1)+'</td><td class="code">'+esc(x.wallet)+'</td><td>'+x.buys+'</td><td>'+x.sells+'</td><td>'+x.tx+'</td><td>'+x.buyVol.toLocaleString(undefined,{maximumFractionDigits:6})+'</td><td>'+x.sellVol.toLocaleString(undefined,{maximumFractionDigits:6})+'</td><td>'+x.fees.toLocaleString(undefined,{maximumFractionDigits:6})+'</td></tr>').join("");
+
+  $("baAdminTimeline").innerHTML=admin.slice().sort((a,b)=>a.blockNumber-b.blockNumber).map(x=>'<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td>'+x.name+'</td><td>'+esc(details(x))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>').join("");
+
+  phaseBIndexedThrough=rows.reduce((m,x)=>Math.max(m,x.blockNumber),0);
+  $("baIndexedThrough").value=phaseBIndexedThrough;
+  $("baIndexedEvents").value=rows.length;
+  try{localStorage.setItem(phaseBCacheKey,JSON.stringify({through:phaseBIndexedThrough,rows:rows.map(x=>({name:x.name,args:x.args,blockNumber:x.blockNumber,time:x.time,transactionHash:x.transactionHash}))}));}catch(_){}
+  phaseBRows=rows;
+  $("phaseBAdvancedCard").style.display="block";
+}
+function baAnalyzeWallet(){
+  try{
+    const w=$("baWallet").value.trim().toLowerCase();
+    if(!ethers.isAddress(w))throw Error("Enter a valid wallet address.");
+    const rows=phaseBRows.filter(x=>(x.name==="Buy"||x.name==="Sell")&&String(x.args.user).toLowerCase()===w);
+    if(!rows.length){$("baWalletStatus").textContent="No swap activity found for this wallet in the currently indexed history.";return;}
+    let fees=0,buys=0,sells=0;rows.forEach(x=>{fees+=baNum(x.args.usdtFee,18);x.name==="Buy"?buys++:sells++;});
+    $("baFirstActivity").textContent=rows.map(x=>new Date(x.time)).sort((a,b)=>a-b)[0].toLocaleString();
+    $("baLastActivity").textContent=rows.map(x=>new Date(x.time)).sort((a,b)=>b-a)[0].toLocaleString();
+    $("baWalletBuys").textContent=buys;$("baWalletSells").textContent=sells;$("baWalletFees").textContent=fees.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+    $("baWalletStatus").textContent=rows.length+" swap event(s) found.";
+  }catch(e){$("baWalletStatus").textContent="Error: "+err(e);}
+}
+async function baIndexNew(){
+  try{
+    if(!provider)throw Error("Load the pool first.");
+    const latest=await provider.getBlockNumber();
+    const from=Math.max(0,Number(phaseBIndexedThrough||Number($("histFrom").value||0))+1);
+    if(from>latest){$("baIndexStatus").textContent="Already indexed through the latest block.";return;}
+    $("baIndexStatus").textContent="Indexing blocks "+from.toLocaleString()+" ? "+latest.toLocaleString()+"...";
+    const rows=await scan(from,latest,"baIndexStatus");
+    await addTimes(rows,"baIndexStatus");
+    const merged=phaseBRows.concat(rows);
+    const byTxLog=new Map();
+    merged.forEach(x=>byTxLog.set(x.transactionHash+":"+x.name+":"+x.blockNumber+":"+JSON.stringify(x.args),x));
+    baAdvancedAnalyze(Array.from(byTxLog.values()));
+    $("baIndexStatus").textContent="Incremental index complete.";
+  }catch(e){$("baIndexStatus").textContent="Error: "+err(e);}
+}
+function baClearCache(){
+  try{localStorage.removeItem(phaseBCacheKey);}catch(_){}
+  phaseBIndexedThrough=0;
+  $("baIndexedThrough").value="";
+  $("baIndexedEvents").value="";
+  $("baIndexStatus").textContent="Local analytics cache cleared. Blockchain data is unchanged.";
+}
+function baCsv(rows,name,headers,mapper){
+  if(!rows.length){alert("Nothing to export.");return;}
+  const out=[headers.join(",")].concat(rows.map(x=>mapper(x).map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")));
+  const blob=new Blob([out.join("\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download=name+".csv";a.click();URL.revokeObjectURL(a.href);
+}
+
+function phaseBReset(){
+  ["bTotalEvents","bBuyCount","bSellCount","bAdminCount"].forEach(id=>$(id).textContent="0");
+  ["bUsdtBuy","bInrpBought","bInrpSold","bUsdtSold","bSwapFees","bUsdtDep","bInrpDep","bUsdtWd","bInrpWd","bFeesWd"].forEach(id=>$(id).textContent="0");
+  $("bAdminSummary").textContent="";
+  $("bChart").innerHTML="";
+}
+
+function phaseBSummarize(rows){
+  phaseBRows=rows||[];
+  const buys=phaseBRows.filter(x=>x.name==="Buy");
+  const sells=phaseBRows.filter(x=>x.name==="Sell");
+  const adminNames=new Set(["AdminAction","RateUpdated","FeesUpdated","OwnershipTransferred","Paused","Unpaused","Blacklisted","Unblacklisted","USDTDeposited","INRPDeposited","LiquidityDeposited","USDTWithdrawn","INRPWithdrawn","LiquidityWithdrawn","FeesWithdrawn","TokenRescued","BNBRescued"]);
+  const admins=phaseBRows.filter(x=>adminNames.has(x.name));
+
+  $("bTotalEvents").textContent=phaseBRows.length.toLocaleString();
+  $("bBuyCount").textContent=buys.length.toLocaleString();
+  $("bSellCount").textContent=sells.length.toLocaleString();
+  $("bAdminCount").textContent=admins.length.toLocaleString();
+
+  let usdtBuy=0,inrpBought=0,inrpSold=0,usdtSold=0,fees=0;
+  buys.forEach(x=>{usdtBuy+=Number(ethers.formatUnits(x.args.usdtIn,18));inrpBought+=Number(ethers.formatUnits(x.args.inrpOut,6));fees+=Number(ethers.formatUnits(x.args.usdtFee,18));});
+  sells.forEach(x=>{inrpSold+=Number(ethers.formatUnits(x.args.inrpIn,6));usdtSold+=Number(ethers.formatUnits(x.args.usdtOut,18));fees+=Number(ethers.formatUnits(x.args.usdtFee,18));});
+  $("bUsdtBuy").textContent=usdtBuy.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("bInrpBought").textContent=inrpBought.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP";
+  $("bInrpSold").textContent=inrpSold.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP";
+  $("bUsdtSold").textContent=usdtSold.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("bSwapFees").textContent=fees.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+
+  let ud=0,id=0,uw=0,iw=0,fw=0;
+  admins.forEach(x=>{
+    try{
+      if(x.name==="USDTDeposited") ud+=Number(ethers.formatUnits(x.args.amount,18));
+      if(x.name==="INRPDeposited") id+=Number(ethers.formatUnits(x.args.amount,6));
+      if(x.name==="LiquidityDeposited"){ud+=Number(ethers.formatUnits(x.args.usdtAmount,18));id+=Number(ethers.formatUnits(x.args.inrpAmount,6));}
+      if(x.name==="USDTWithdrawn") uw+=Number(ethers.formatUnits(x.args.amount,18));
+      if(x.name==="INRPWithdrawn") iw+=Number(ethers.formatUnits(x.args.amount,6));
+      if(x.name==="LiquidityWithdrawn"){uw+=Number(ethers.formatUnits(x.args.usdtAmount,18));iw+=Number(ethers.formatUnits(x.args.inrpAmount,6));}
+      if(x.name==="FeesWithdrawn") fw+=Number(ethers.formatUnits(x.args.amount,18));
+    }catch(_){}
+  });
+  $("bUsdtDep").textContent=ud.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("bInrpDep").textContent=id.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP";
+  $("bUsdtWd").textContent=uw.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+  $("bInrpWd").textContent=iw.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP";
+  $("bFeesWd").textContent=fw.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+
+  const ownership=admins.filter(x=>x.name==="OwnershipTransferred").length;
+  const rates=admins.filter(x=>x.name==="RateUpdated").length;
+  const feesChanges=admins.filter(x=>x.name==="FeesUpdated").length;
+  $("bAdminSummary").textContent=`Ownership changes: ${ownership} • Rate changes: ${rates} • Fee changes: ${feesChanges}`;
+
+  phaseBRenderChart();
+}
+
+function phaseBRenderChart(){
+  const bucket=$("bBucket").value;
+  const map={};
+  phaseBRows.filter(x=>x.name==="Buy"||x.name==="Sell").forEach(x=>{
+    const d=new Date(x.time);
+    let key;
+    if(bucket==="month") key=d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0");
+    else if(bucket==="week"){
+      const z=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));
+      z.setUTCDate(z.getUTCDate()-z.getUTCDay());
+      key=z.toISOString().slice(0,10);
+    } else key=d.toISOString().slice(0,10);
+    map[key]=(map[key]||0)+1;
+  });
+  const entries=Object.entries(map).slice(-30);
+  if(!entries.length){$("bChart").innerHTML="<div class='small'>Run a historical scan first to populate the chart.</div>";return;}
+  const max=Math.max(...entries.map(x=>x[1]),1);
+  $("bChart").innerHTML='<div class="chartrow">'+entries.map(([k,v])=>'<div class="chartbar" style="height:'+Math.max(4,180*v/max)+'px"><em>'+v+'</em><span>'+k+'</span></div>').join("")+'</div>';
+}
+
+async function phaseBAnalyzeWallet(){
+  try{
+    const w=$("bWallet").value.trim();
+    if(!ethers.isAddress(w)) throw Error("Enter a valid wallet address.");
+    const f=Number($("bWalletFrom").value),t=Number($("bWalletTo").value);
+    if(!Number.isInteger(f)||!Number.isInteger(t)||f<0||t<f) throw Error("Enter a valid block range.");
+    $("bWalletStatus").textContent="Scanning wallet activity...";
+    let rows=phaseBRows.filter(x=>x.blockNumber>=f&&x.blockNumber<=t&&(x.name==="Buy"||x.name==="Sell")&&String(x.args.user).toLowerCase()===w.toLowerCase());
+    if(!rows.length && phaseBRows.length===0){
+      rows=await scan(f,t,"bWalletStatus");
+      await addTimes(rows,"bWalletStatus");
+      rows=rows.filter(x=>(x.name==="Buy"||x.name==="Sell")&&String(x.args.user).toLowerCase()===w.toLowerCase());
+    }
+    phaseBWalletRows=rows;
+    let bc=0,sc=0,bv=0,sv=0,fee=0;
+    rows.forEach(x=>{
+      if(x.name==="Buy"){bc++;bv+=Number(ethers.formatUnits(x.args.usdtIn,18));fee+=Number(ethers.formatUnits(x.args.usdtFee,18));}
+      else {sc++;sv+=Number(ethers.formatUnits(x.args.usdtOut,18));fee+=Number(ethers.formatUnits(x.args.usdtFee,18));}
+    });
+    $("bWBuys").textContent=bc;
+    $("bWSells").textContent=sc;
+    $("bWBuyVol").textContent=bv.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+    $("bWSellVol").textContent=sv.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+    $("bWFees").textContent=fee.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT";
+    $("bWalletTable").innerHTML=rows.map(x=>{
+      const a=x.args,b=x.name==="Buy";
+      return '<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td>'+x.name+'</td><td>'+esc(b?fmt(a.usdtIn,18)+" USDT":fmt(a.inrpIn,6)+" INRP")+'</td><td>'+esc(fmt(a.usdtFee,18))+' USDT</td><td>'+esc(b?fmt(a.inrpOut,6)+" INRP":fmt(a.usdtOut,18)+" USDT")+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>';
+    }).join("");
+    $("bWalletTableWrap").style.display="block";
+    $("bWalletStatus").textContent=rows.length+" swap event(s) found for this wallet.";
+  }catch(e){$("bWalletStatus").textContent="Error: "+err(e);}
+}
+
+function phaseBCsv(rows,kind){
+  if(!rows||!rows.length){alert("Nothing to export.");return;}
+  const cols=kind==="wallet"?["block","time","type","wallet","tx"]:["block","time","type","tx"];
+  const out=[cols.join(",")];
+  rows.forEach(x=>{
+    const wallet=x.args&&x.args.user?x.args.user:"";
+    out.push([x.blockNumber,x.time,x.name,wallet,x.transactionHash].map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(","));
+  });
+  const blob=new Blob([out.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=kind+"-analytics.csv";a.click();URL.revokeObjectURL(a.href);
+}
+
+async function loadPool(){
+ try{
+  address=ethers.getAddress($("pool").value.trim());$("pool").value=address;await init();
+  contract=new ethers.Contract(address,ABI,provider);
+  $("scan").href="https://testnet.bscscan.com/address/"+address;$("scan").style.display="inline-block";
+  ["overviewCard","historyControlsCard","phaseBCard","swapCard","eventsCard","adminCard"].forEach(x=>$(x).style.display="block");
+$("phaseBAdvancedCard").style.display="block";
+  await overview();
+  const latest=await provider.getBlockNumber(),dep=Number($("deploy").value||0),from=dep||Math.max(0,latest-5000);
+  ["sf","ef","af","histFrom"].forEach(x=>$(x).value=from);["st","et","at","histTo"].forEach(x=>$(x).value=latest);
+$("bWalletFrom").value=from;$("bWalletTo").value=latest;phaseBReset();
+  $("status").textContent="Loaded "+address+" | BNB Smart Chain Testnet | latest block "+latest;
+ }catch(e){$("status").textContent="Error: "+err(e);$("status").className="small err"}
+}
+async function overview(){
+ const p=await contract.getPoolInfo(),[o,u,i,r,bf,sf,ub,ib,fees,avail,paused]=p;
+ $("overview").innerHTML=[
+ ["Pool",address],["Owner",short(o)],["USDT",short(u)],["INRP",short(i)],
+ ["Rate","1 USDT = "+fmt(r,18)+" INRP"],["Buy fee",(Number(bf)/100).toFixed(2)+"%"],["Sell fee",(Number(sf)/100).toFixed(2)+"%"],
+ ["USDT balance",fmt(ub,18)+" USDT"],["INRP balance",fmt(ib,6)+" INRP"],["Accrued fees",fmt(fees,18)+" USDT"],["Available USDT",fmt(avail,18)+" USDT"],["Paused",paused?"YES":"NO"]
+ ].map(x=>'<div class="stat"><span>'+esc(x[0])+'</span><b class="'+(x[0]=="Pool"?"code":"")+'">'+esc(x[1])+'</b></div>').join("");
+}
+async function timestamp(b){
+ if(cache.has(b))return cache.get(b);
+ const x=await provider.getBlock(b),v=x?.timestamp||0;cache.set(b,v);return v;
+}
+async function addTimes(rows,status){
+ const bs=[...new Set(rows.map(x=>x.blockNumber))];
+ for(let i=0;i<bs.length;i+=6){await Promise.all(bs.slice(i,i+6).map(timestamp));$(status).textContent="Loading timestamps "+Math.min(i+6,bs.length)+"/"+bs.length+"..."}
+ rows.forEach(x=>x.time=cache.get(x.blockNumber)?new Date(cache.get(x.blockNumber)*1000).toLocaleString():"—");
+}
+function parse(log){try{return new ethers.Interface(ABI).parseLog({topics:log.topics,data:log.data})}catch{return null}}
+async function scan(from,to,status){
+ const chunk=Math.max(100,Math.min(10000,Number($("chunk").value||2000))),out=[];stop=false;
+ for(let s=from;s<=to;s+=chunk){
+  if(stop)break;let e=Math.min(to,s+chunk-1);
+  const logs=await provider.getLogs({address,fromBlock:s,toBlock:e});
+  logs.forEach(l=>{const p=parse(l);if(p)out.push({name:p.name,args:p.args,blockNumber:l.blockNumber,transactionHash:l.transactionHash})});
+  $("bar").style.width=Math.round(((e-from+1)/(to-from+1))*100)+"%";$(status).textContent="Scanned "+s.toLocaleString()+"–"+e.toLocaleString()+" | "+out.length+" logs";
+ }
+ return out;
+}
+function adminAction(v){
+ const m={};
+ ["transferOwnership","renounceOwnership","pause","unpause","blacklist","unblacklist","setRateWAD","setRate"].forEach(x=>m[ethers.id(x)]=x);
+ return m[v]||v;
+}
+function details(x){
+ const a=x.args,n=x.name;
+ if(n==="Buy")return short(a.user)+" | "+fmt(a.usdtIn,18)+" USDT in | fee "+fmt(a.usdtFee,18)+" USDT | "+fmt(a.inrpOut,6)+" INRP out";
+ if(n==="Sell")return short(a.user)+" | "+fmt(a.inrpIn,6)+" INRP in | gross "+fmt(a.usdtGross,18)+" USDT | fee "+fmt(a.usdtFee,18)+" | "+fmt(a.usdtOut,18)+" USDT out";
+ if(n==="SwapLimitsChecked")return short(a.user)+" | "+(a.isBuy?"BUY":"SELL")+" | input "+(a.isBuy?fmt(a.inputAmount,18)+" USDT":fmt(a.inputAmount,6)+" INRP")+" | quote "+(a.isBuy?fmt(a.quotedOutput,6)+" INRP":fmt(a.quotedOutput,18)+" USDT")+" | min "+(a.isBuy?fmt(a.minOutput,6)+" INRP":fmt(a.minOutput,18)+" USDT");
+ if(n==="AdminAction")return short(a.admin)+" | "+adminAction(a.action)+" | target "+short(a.target)+" | amount(base units) "+a.amount;
+ if(n==="RateUpdated")return fmt(a.oldRateWAD,18)+" ? "+fmt(a.newRateWAD,18)+" INRP/USDT";
+ if(n==="FeesUpdated")return "Buy "+Number(a.oldBuyFeeBps)/100+"% ? "+Number(a.newBuyFeeBps)/100+"% | Sell "+Number(a.oldSellFeeBps)/100+"% ? "+Number(a.newSellFeeBps)/100+"%";
+ if(n==="USDTDeposited")return short(a.from)+" deposited "+fmt(a.amount,18)+" USDT";
+ if(n==="INRPDeposited")return short(a.from)+" deposited "+fmt(a.amount,6)+" INRP";
+ if(n==="LiquidityDeposited")return short(a.from)+" deposited "+fmt(a.usdtAmount,18)+" USDT + "+fmt(a.inrpAmount,6)+" INRP";
+ if(n==="USDTWithdrawn")return short(a.to)+" received "+fmt(a.amount,18)+" USDT";
+ if(n==="INRPWithdrawn")return short(a.to)+" received "+fmt(a.amount,6)+" INRP";
+ if(n==="LiquidityWithdrawn")return short(a.to)+" received "+fmt(a.usdtAmount,18)+" USDT + "+fmt(a.inrpAmount,6)+" INRP";
+ if(n==="FeesWithdrawn")return short(a.to)+" received "+fmt(a.amount,18)+" USDT fees";
+ if(n==="OwnershipTransferred")return short(a.previousOwner)+" ? "+short(a.newOwner);
+ if(n==="Paused"||n==="Unpaused"||n==="Blacklisted"||n==="Unblacklisted")return short(a.account);
+ if(n==="BNBRescued")return short(a.to)+" received "+fmt(a.amount,18)+" BNB";
+ if(n==="TokenRescued")return short(a.token)+" ? "+short(a.to)+" | base units "+a.amount;
+ return JSON.stringify(a.map?.(v=>v?.toString?.()??v)??a);
+}
+
+function getHistoryRange(){
+ const f=Number($("histFrom").value),t=Number($("histTo").value);
+ if(!Number.isInteger(f)||!Number.isInteger(t)||f<0||t<0||f>t) throw Error("Enter a valid historical block range.");
+ return [f,t];
+}
+async function dedicatedScan(kind){
+ try{
+  const [f,t]=getHistoryRange();
+  const wallet=$("histWallet").value.trim().toLowerCase();
+  if(wallet&&!ethers.isAddress(wallet)) throw Error("Invalid wallet address.");
+  $("historyStatus").className="small";
+  $("historyStatus").textContent="Starting historical scan...";
+  $("historyBar").style.width="0%";
+  let rows=await scan(f,t,"historyStatus");
+  if(kind==="all"){ phaseBSummarize(rows);
+    baAdvancedAnalyze(rows); }
+
+  if(kind==="swap"){
+   rows=rows.filter(x=>x.name==="Buy"||x.name==="Sell");
+   if(wallet) rows=rows.filter(x=>String(x.args.user).toLowerCase()===wallet);
+   await addTimes(rows,"historyStatus");
+   lastSwaps=rows;
+   $("sf").value=f;$("st").value=t;$("sw").value=wallet;$("stype").value="ALL";
+   $("swapTable").innerHTML=rows.map(x=>{
+    const a=x.args,b=x.name==="Buy";
+    return '<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td><span class="badge '+(b?"buy":"sell")+'">'+x.name+'</span></td><td class="code">'+esc(a.user)+'</td><td>'+esc(b?fmt(a.usdtIn,18)+" USDT":fmt(a.inrpIn,6)+" INRP")+'</td><td>'+esc(fmt(a.usdtFee,18))+' USDT</td><td>'+esc(b?fmt(a.inrpOut,6)+" INRP":"gross "+fmt(a.usdtGross,18)+" / net "+fmt(a.usdtOut,18)+" USDT")+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>';
+   }).join("");
+   $("swapTableWrap").style.display="block";
+   $("swapStatus").textContent=rows.length+" swap event(s) found.";
+  }else if(kind==="admin"){
+   const names=new Set(["AdminAction","RateUpdated","FeesUpdated","OwnershipTransferred","Paused","Unpaused","Blacklisted","Unblacklisted","USDTDeposited","INRPDeposited","LiquidityDeposited","USDTWithdrawn","INRPWithdrawn","LiquidityWithdrawn","FeesWithdrawn","TokenRescued","BNBRescued"]);
+   rows=rows.filter(x=>names.has(x.name));
+   await addTimes(rows,"historyStatus");
+   $("af").value=f;$("at").value=t;
+   $("adminTable").innerHTML=rows.map(x=>'<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td>'+x.name+'</td><td>'+esc(details(x))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>').join("");
+   $("adminTableWrap").style.display="block";
+   $("adminStatus").textContent=rows.length+" matching admin/audit event(s) found.";
+  }else{
+   await addTimes(rows,"historyStatus");
+   lastEvents=rows;
+    phaseBSummarize(rows);
+   $("ef").value=f;$("et").value=t;$("emode").value="range";
+   $("eventTable").innerHTML=rows.map(x=>'<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td><span class="badge">'+x.name+'</span></td><td>'+esc(details(x))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>').join("");
+   $("eventTableWrap").style.display="block";
+   $("eventStatus").textContent=rows.length+" event(s) found.";
+  }
+  $("historyBar").style.width="100%";
+  $("historyStatus").textContent="Historical scan complete: "+rows.length+" result(s).";
+ }catch(e){
+  $("historyStatus").className="small err";
+  $("historyStatus").textContent="Error: "+err(e);
+ }
+}
+
+
+async function loadAndScanEntireHistory(){
+  try{
+    // Load Pool first so the normal overview/current-state UI is populated.
+    await loadPool();
+
+    const from=Number($("histFrom").value);
+    const to=Number($("histTo").value);
+    if(!Number.isInteger(from)||from<0) throw Error("Enter the pool deployment block in From block.");
+
+    // Always use the latest chain height for the automatic full-history scan.
+    const latest=await provider.getBlockNumber();
+    $("histTo").value=latest;
+
+    $("historyStatus").className="small";
+    $("historyStatus").textContent="Scanning entire pool history from block "+from.toLocaleString()+" to "+latest.toLocaleString()+"...";
+    $("historyBar").style.width="0%";
+
+    // Reuse the existing event scanner and then populate the All Events table.
+    const rows=await scan(from,latest,"historyStatus");
+    await addTimes(rows,"historyStatus");
+
+    lastEvents=rows;
+    $("ef").value=from;
+    $("et").value=latest;
+    $("emode").value="range";
+
+    $("eventTable").innerHTML=rows.map(x=>
+      '<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td><span class="badge">'+x.name+'</span></td><td>'+esc(details(x))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>'
+    ).join("");
+
+    $("eventTableWrap").style.display="block";
+    $("eventStatus").textContent=rows.length+" event(s) found across the full pool history.";
+    $("historyBar").style.width="100%";
+    $("historyStatus").textContent="Complete. Scanned blocks "+from.toLocaleString()+" ? "+latest.toLocaleString()+" and found "+rows.length+" event(s).";
+
+    // Also populate the swap and admin tables from the same full-history result,
+    // avoiding a second full blockchain scan.
+    const wallet=$("histWallet").value.trim().toLowerCase();
+    let swapsRows=rows.filter(x=>x.name==="Buy"||x.name==="Sell");
+    if(wallet){
+      if(!ethers.isAddress(wallet)) throw Error("Invalid wallet address.");
+      swapsRows=swapsRows.filter(x=>String(x.args.user).toLowerCase()===wallet);
+    }
+    lastSwaps=swapsRows;
+    $("sf").value=from;
+    $("st").value=latest;
+    $("sw").value=wallet;
+    $("stype").value="ALL";
+
+    $("swapTable").innerHTML=swapsRows.map(x=>{
+      const a=x.args,b=x.name==="Buy";
+      return '<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td><span class="badge '+(b?"buy":"sell")+'">'+x.name+'</span></td><td class="code">'+esc(a.user)+'</td><td>'+esc(b?fmt(a.usdtIn,18)+" USDT":fmt(a.inrpIn,6)+" INRP")+'</td><td>'+esc(fmt(a.usdtFee,18))+' USDT</td><td>'+esc(b?fmt(a.inrpOut,6)+" INRP":"gross "+fmt(a.usdtGross,18)+" / net "+fmt(a.usdtOut,18)+" USDT")+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>';
+    }).join("");
+    $("swapTableWrap").style.display="block";
+    $("swapStatus").textContent=swapsRows.length+" swap event(s) found.";
+
+    const adminNames=new Set(["AdminAction","RateUpdated","FeesUpdated","OwnershipTransferred","Paused","Unpaused","Blacklisted","Unblacklisted","USDTDeposited","INRPDeposited","LiquidityDeposited","USDTWithdrawn","INRPWithdrawn","LiquidityWithdrawn","FeesWithdrawn","TokenRescued","BNBRescued"]);
+    const adminRows=rows.filter(x=>adminNames.has(x.name));
+    $("af").value=from;
+    $("at").value=latest;
+    $("adminTable").innerHTML=adminRows.map(x=>
+      '<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td>'+x.name+'</td><td>'+esc(details(x))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>'
+    ).join("");
+    $("adminTableWrap").style.display="block";
+    $("adminStatus").textContent=adminRows.length+" matching admin/audit event(s) found.";
+  }catch(e){
+    $("historyStatus").className="small err";
+    $("historyStatus").textContent="Error: "+err(e);
+  }
+}
+
+async function swaps(){
+ try{
+  const raw=await scan(Number($("sf").value),Number($("st").value),"swapStatus"),typ=$("stype").value,w=$("sw").value.trim().toLowerCase();
+  if(w&&!ethers.isAddress(w))throw Error("Invalid wallet address.");
+  let r=raw.filter(x=>(x.name==="Buy"||x.name==="Sell")&&(typ==="ALL"||x.name===typ)&&( !w||String(x.args.user).toLowerCase()===w));
+  await addTimes(r,"swapStatus");lastSwaps=r;
+  const buy=r.filter(x=>x.name==="Buy"),sell=r.filter(x=>x.name==="Sell");
+  const bv=buy.reduce((s,x)=>s+x.args.usdtIn,0n),sv=sell.reduce((s,x)=>s+x.args.usdtGross,0n),fees=r.reduce((s,x)=>s+x.args.usdtFee,0n);
+  $("swapTotals").innerHTML=[["Buy transactions",buy.length],["Sell transactions",sell.length],["Buy input volume",fmt(bv,18)+" USDT"],["Sell gross volume",fmt(sv,18)+" USDT"],["Fees",fmt(fees,18)+" USDT"]].map(x=>'<div class="stat"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join("");
+  $("swapTable").innerHTML=r.map(x=>{let a=x.args,b=x.name==="Buy";return '<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td><span class="badge '+(b?"buy":"sell")+'">'+x.name+'</span></td><td class="code">'+esc(a.user)+'</td><td>'+esc(b?fmt(a.usdtIn,18)+" USDT":fmt(a.inrpIn,6)+" INRP")+'</td><td>'+esc(fmt(a.usdtFee,18))+' USDT</td><td>'+esc(b?fmt(a.inrpOut,6)+" INRP":"gross "+fmt(a.usdtGross,18)+" / net "+fmt(a.usdtOut,18)+" USDT")+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>'}).join("");
+  $("swapTableWrap").style.display="block";$("swapStatus").textContent=r.length+" swap event(s) found.";
+ }catch(e){$("swapStatus").textContent="Error: "+err(e);$("swapStatus").className="small err"}
+}
+async function events(){
+ try{
+  const latest=await provider.getBlockNumber(),mode=$("emode").value;let f,t;
+  if(mode==="recent"){t=latest;f=Math.max(0,t-Number($("es").value||5000)+1)}
+  else if(mode==="specific"){f=t=Number($("es").value)}
+  else if(mode==="range"){f=Number($("ef").value);t=Number($("et").value)}
+  else{f=Number($("deploy").value);t=latest;if(!Number.isInteger(f))throw Error("Enter deployment block for All History.")}
+  if(f>t)throw Error("Invalid block range.");
+  let r=await scan(f,t,"eventStatus");const typ=$("etype").value;if(typ!=="ALL")r=r.filter(x=>x.name===typ);
+  await addTimes(r,"eventStatus");lastEvents=r;
+  $("eventTable").innerHTML=r.map(x=>'<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td><span class="badge">'+x.name+'</span></td><td>'+esc(details(x))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>').join("");
+  $("eventTableWrap").style.display="block";$("eventStatus").textContent=r.length+" event(s) found.";
+ }catch(e){$("eventStatus").textContent="Error: "+err(e);$("eventStatus").className="small err"}
+}
+async function adminHistory(){
+ const raw=await scan(Number($("af").value),Number($("at").value),"adminStatus"),typ=$("atype").value;
+ const r=raw.filter(x=>x.name===typ);await addTimes(r,"adminStatus");
+ $("adminTable").innerHTML=r.map(x=>'<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time)+'</td><td>'+x.name+'</td><td>'+esc(details(x))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank">'+short(x.transactionHash)+'</a></td></tr>').join("");
+ $("adminTableWrap").style.display="block";$("adminStatus").textContent=r.length+" matching audit event(s) found.";
+}
+function csv(name,rows){
+ if(!rows.length)return alert("Nothing to export.");
+ const out=rows.map(x=>({block:x.blockNumber,time:x.time,event:x.name,details:details(x),transaction:x.transactionHash}));
+ const s=["block,time,event,details,transaction",...out.map(x=>[x.block,x.time,x.event,x.details,x.transaction].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(","))].join("\n");
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([s],{type:"text/csv"}));a.download=name;a.click();
+}
+$("load").onclick=loadPool;
+$("searchSwaps").onclick=swaps;
+$("searchEvents").onclick=events;
+$("searchAdmin").onclick=()=>adminHistory().catch(e=>{$("adminStatus").textContent="Error: "+err(e)});
+$("scanSwapHistory").onclick=()=>dedicatedScan("swap");
+$("scanAdminHistory").onclick=()=>dedicatedScan("admin");
+$("scanAllHistory").onclick=()=>dedicatedScan("all");
+$("loadAndScanHistory").onclick=loadAndScanEntireHistory;
+$("bAnalyzeWallet").onclick=phaseBAnalyzeWallet;
+$("bClearWallet").onclick=()=>{phaseBWalletRows=[];$("bWallet").value="";$("bWalletTableWrap").style.display="none";["bWBuys","bWSells","bWBuyVol","bWSellVol","bWFees"].forEach(id=>$(id).textContent="0");$("bWalletStatus").textContent="";};
+$("bBucket").onchange=phaseBRenderChart;
+$("bExportSwaps").onclick=()=>phaseBCsv(phaseBRows.filter(x=>x.name==="Buy"||x.name==="Sell"),"swaps");
+$("bExportEvents").onclick=()=>phaseBCsv(phaseBRows,"events");
+$("bExportWallet").onclick=()=>phaseBCsv(phaseBWalletRows,"wallet");
+
+$("baAnalyzeWallet").onclick=baAnalyzeWallet;
+$("baIndexNew").onclick=baIndexNew;
+$("baClearCache").onclick=baClearCache;
+$("baExportWallets").onclick=()=>baCsv(Object.values((()=>{const m={};phaseBRows.filter(x=>x.name==="Buy"||x.name==="Sell").forEach(x=>{const w=String(x.args.user).toLowerCase();if(!m[w])m[w]={wallet:w,buys:0,sells:0,tx:0,fees:0};m[w].tx++;x.name==="Buy"?m[w].buys++:m[w].sells++;m[w].fees+=baNum(x.args.usdtFee,18);});return m;})()),"top-wallets",["wallet","buys","sells","transactions","fees"],x=>[x.wallet,x.buys,x.sells,x.tx,x.fees]);
+$("baExportRates").onclick=()=>baCsv(phaseBRows.filter(x=>x.name==="RateUpdated"),"rate-history",["block","time","oldRate","newRate","tx"],x=>[x.blockNumber,x.time,fmt(x.args.oldRateWAD,18),fmt(x.args.newRateWAD,18),x.transactionHash]);
+$("baExportLiquidity").onclick=()=>baCsv(phaseBRows.filter(x=>["USDTDeposited","INRPDeposited","LiquidityDeposited","USDTWithdrawn","INRPWithdrawn","LiquidityWithdrawn"].includes(x.name)),"liquidity-history",["block","time","event","tx"],x=>[x.blockNumber,x.time,x.name,x.transactionHash]);
+$("baExportAdmin").onclick=()=>baCsv(phaseBRows.filter(x=>["AdminAction","RateUpdated","FeesUpdated","OwnershipTransferred","Paused","Unpaused","Blacklisted","Unblacklisted","USDTDeposited","INRPDeposited","LiquidityDeposited","USDTWithdrawn","INRPWithdrawn","LiquidityWithdrawn","FeesWithdrawn","TokenRescued","BNBRescued"].includes(x.name)),"admin-timeline",["block","time","event","tx"],x=>[x.blockNumber,x.time,x.name,x.transactionHash]);
+
+
+$("stop").onclick=()=>stop=true;$("exportEvents").onclick=()=>csv("pool-events.csv",lastEvents);$("exportSwaps").onclick=()=>csv("pool-swaps.csv",lastSwaps);
+$("copy").onclick=async()=>{if(!address)return alert("Load a pool first.");try{await navigator.clipboard.writeText(address);$("copy").textContent="Copied";setTimeout(()=>$("copy").textContent="Copy Contract Address",1200)}catch(e){alert(err(e))}};
+$("emode").onchange=async()=>{if(!provider)return;const n=await provider.getBlockNumber(),d=Number($("deploy").value||0);if($("emode").value==="range"){$("ef").value=d||n-5000;$("et").value=n}else if($("emode").value==="all"){$("ef").value=d;$("et").value=n}};
+</script>
+</body>
+</html>

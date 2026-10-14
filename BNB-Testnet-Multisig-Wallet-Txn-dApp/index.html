@@ -1,198 +1,72 @@
-	<!DOCTYPE html>
-	<html lang="en">
-	<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Safe{Wallet} � Local Chapel Workspace</title>
-	<!-- Load Core UI Font Engines -->
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-	<!-- Load React Framework Libraries directly via secure CDN -->
-	<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-	<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-	<!-- Load Babel Browser Compiler to execute component markup -->
-	<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-	<!-- Load Ethers.js to handle wallet connection hooks securely -->
-	<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-	<style>
-	body { margin: 0; padding: 0; background-color: #0F1011; font-family: 'Inter', sans-serif; color: #FFFFFF; }
-	.wrapper { padding: 40px 20px; min-height: 100vh; box-sizing: border-box; }
-	.container { max-width: 600px; margin: 0 auto; }
-	.card { background-color: #121314; padding: 32px; border-radius: 16px; border: 1px solid #2E3033; box-shadow: 0px 4px 20px rgba(0,0,0,0.5); }
-	.topbar { display: flex; justify-content: space-between; align-items: center; background-color: #1E2022; padding: 16px 24px; border-radius: 12px; border: 1px solid #2E3033; margin-bottom: 20px; }
-	.btn-gold { background-color: #F0B90B; color: #121314; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; }
-	.btn-gold:disabled { background-color: #4E4426; cursor: not-allowed; }
-	.btn-outline { background-color: transparent; color: #F0B90B; border: 1px solid #F0B90B; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; width: 100%; }
-	.input-field { width: 100%; background-color: #1E2022; color: #FFFFFF; border: 1px solid #2E3033; border-radius: 8px; padding: 12px; font-size: 14px; margin-bottom: 16px; box-sizing: border-box; }
-	.status-box { padding: 12px; font-size: 13px; margin-top: 16px; word-break: break-all; border-radius: 8px; }
-	</style>
-	</head>
-	<body>
-	<div id="root"></div>
-	
-	<script type="text/babel">
-	function App() {
-	const [currentAddress, setCurrentAddress] = React.useState('');
-	const [safeAddressInput, setSafeAddressInput] = React.useState('');
-	const [activeSafeAddress, setActiveSafeAddress] = React.useState('');
-	const [jsonInput, setJsonInput] = React.useState('');
-	const [txStatus, setTxStatus] = React.useState('');
-	const [interceptedTx, setInterceptedTx] = React.useState(null);
-	
-	// Connect Browser Extension Wallet (MetaMask/Trust Wallet)
-	const connectWallet = async () => {
-	if (window.ethereum) {
-	try {
-	const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-	// Ensure network target is manually aligned to Chapel Testnet Chain ID 97
-	await window.ethereum.request({
-	method: 'wallet_switchEthereumChain',
-	params: [{ chainId: '0x61' }], // Hex representation of 97
-	});
-	setCurrentAddress(accounts[0]);
-	setTxStatus('Wallet connected to BSC Testnet successfully!');
-	} catch (err) {
-	setTxStatus('Connection Error: ' + err.message);
-	}
-	} else {
-	alert('No Web3 wallet injected found. Please install MetaMask extension.');
-	}
-	};
-	
-	// Setup Background message listener to catch data flows from the inner iframe
-	React.useEffect(() => {
-	const handleSafeAppMessage = (event) => {
-	if (event.data && event.data.params && event.data.method === 'sendTransactions') {
-	const txsArray = event.data.params.txs;
-	if (txsArray && txsArray.length > 0) {
-	setInterceptedTx(txsArray[0]);
-	setTxStatus('Transaction captured from app! Click step 1 below to sign.');
-	}
-	}
-	};
-	window.addEventListener('message', handleSafeAppMessage);
-	return () => window.removeEventListener('message', handleSafeAppMessage);
-	}, []);
-	
-	// OWNER 1: Prompt Signature and trigger file distribution asset build
-	const handleCreateAndDownload = async () => {
-	try {
-	setTxStatus('Initiating signature request...');
-	const provider = new ethers.providers.Web3Provider(window.ethereum);
-	const signer = provider.getSigner();
-	
-	const txData = interceptedTx || { to: '0x0000000000000000000000000000000000000000', value: '0', data: '0x' };
-	
-	// Format standard transaction parameters locally 
-	const dummyNonce = Date.now();
-	const txPayload = { transactions: [txData], nonce: dummyNonce };
-	
-	// Request a cryptographic text signature confirmation from the browser key
-	const signature = await signer.signMessage(JSON.stringify(txPayload));
-	
-	const fileDump = JSON.stringify({ transactions: txData, signatures: signature, nonce: dummyNonce });
-	const blob = new Blob([fileDump], { type: 'application/json' });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = `chapel-safe-tx-${dummyNonce}.json`;
-	a.click();
-	setTxStatus('Transaction JSON metadata file downloaded successfully!');
-	} catch (e) {
-	setTxStatus(`Error: ${e.message}`);
-	}
-	};
-	
-	// OWNER 2: Counter-sign data input and execute transactions on-chain
-	const handleImportAndExecute = async () => {
-	try {
-	if (!jsonInput.trim()) return setTxStatus('Error: Input area is empty.');
-	setTxStatus('Parsing payload data records...');
-	const imported = JSON.parse(jsonInput);
-	
-	const provider = new ethers.providers.Web3Provider(window.ethereum);
-	const signer = provider.getSigner();
-	
-	setTxStatus('Submitting execution authorization to Chapel Testnet...');
-	// Broadcast transaction parameters straight to the network layer
-	const txResult = await signer.sendTransaction({
-	to: imported.transactions.to,
-	value: imported.transactions.value,
-	data: imported.transactions.data
-	});
-	setTxStatus(`Success! Broadcasted Hash: ${txResult.hash}`);
-	} catch (e) {
-	setTxStatus(`Execution Failed: ${e.message}`);
-	}
-	};
-	
-	return (
-	<div className="wrapper">
-	<div className="container">
-	<div className="topbar">
-	<div>
-	<span style={{ color: '#A1A8B3', fontSize: '13px' }}>Signer Wallet Connection Status:</span>
-	<div style={{ color: currentAddress ? '#80FFAD' : '#FF8085', fontSize: '14px', fontWeight: 600, marginTop: '4px' }}>
-	{currentAddress ? `Connected: ${currentAddress.slice(0,6)}...${currentAddress.slice(-4)}` : 'Disconnected'}
-	</div>
-	</div>
-	{!currentAddress && <button onClick={connectWallet} style={{ backgroundColor: '#F0B90B', color: '#121314', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>Connect Wallet</button>}
-	</div>
-	
-	{!activeSafeAddress ? (
-	<div className="card">
-	<h3 style={{ margin: '0 0 8px 0', color: '#F0B90B' }}>Target Safe Wallet Selection</h3>
-	<p style={{ color: '#A1A8B3', fontSize: '13px', margin: '0 0 20px 0' }}>Enter your Chapel Safe multi-sig deployment contract address:</p>
-	<input type="text" value={safeAddressInput} onChange={(e) => setSafeAddressInput(e.target.value)} placeholder="0x..." className="input-field" />
-	<button onClick={() => safeAddressInput.startsWith('0x') && setActiveSafeAddress(safeAddressInput)} disabled={!currentAddress} className="btn-gold">Initialize Workspace Interface</button>
-	</div>
-	) : (
-	<div>
-	<div style={{ textAlign: 'center', marginBottom: '10px' }}><button onClick={() => setActiveSafeAddress('')} style={{ background: 'none', border: 'none', color: '#A1A8B3', textDecoration: 'underline', cursor: 'pointer', fontSize: '13px' }}>? Change Target Safe Address</button></div>
-	
-	<div className="card">
-	<div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
-	<div style={{ backgroundColor: '#F0B90B', width: '12px', height: '12px', borderRadius: '50%', marginRight: '12px' }}></div>
-	<h2 style={{ fontSize: '20px', fontWeight: 600, margin: 0 }}>BSC Chapel Testnet Multi-Sig</h2>
-	</div>
-	<p style={{ color: '#A1A8B3', fontSize: '14px', marginBottom: '24px' }}>Safe Address: <code style={{ color: '#F0B90B' }}>{activeSafeAddress}</code></p>
-	
-	<div style={{ marginBottom: '32px', paddingBottom: '24px', borderBottom: '1px solid #2E3033' }}>
-	<h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#F0B90B' }}>Creator Workflows (Owner 1)</h4>
-	<button onClick={handleCreateAndDownload} className="btn-outline">Create & Download Tx File</button>
-	</div>
-	
-	<div style={{ marginBottom: '24px' }}>
-	<h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#F0B90B' }}>Signer Workflows (Owner 2)</h4>
-	<input type="file" accept=".json" onChange={(e) => {
-	const file = e.target.files;
-	if (file) {
-	const reader = new FileReader();
-	reader.onload = (ev) => { setJsonInput(ev.target.result); setTxStatus('File text verified!'); };
-	reader.readAsText(file);
-	}
-	}} style={{ marginBottom: '12px', width: '100%', color: '#FFF' }} />
-	<textarea rows="3" value={jsonInput} onChange={(e) => setJsonInput(e.target.value)} placeholder="Or paste JSON text data here..." className="input-field" style={{ fontFamily: 'monospace', fontSize: '11px' }} />
-	<button onClick={handleImportAndExecute} className="btn-gold">Import, Sign & Execute Live</button>
-	</div>
-	
-	{txStatus && <div className="status-box" style={{ backgroundColor: txStatus.startsWith('Error') || txStatus.startsWith('Execution') ? '#2A1415' : '#142A1E', color: txStatus.startsWith('Error') || txStatus.startsWith('Execution') ? '#FF8085' : '#80FFAD', border: `1px solid ${txStatus.startsWith('Error') || txStatus.startsWith('Execution') ? '#662225' : '#226639'}` }}>{txStatus}</div>}
-	</div>
-	
-	<div style={{ maxWidth: '600px', margin: '30px auto 0 auto', border: '1px dashed #2E3033', borderRadius: '12px', padding: '20px', backgroundColor: '#090A0A', textAlign: 'center' }}>
-	<p style={{ color: '#A1A8B3', fontSize: '13px' }}>Custom App Sandboxed Context Workspace (`iframe` Container)</p>
-	<iframe src="https://usdtinrp-testnet.system4trading.com" title="Custom App Frame" style={{ width: '100%', height: '380px', border: '1px solid #2E3033', borderRadius: '8px', marginTop: '10px' }} />
-	</div>
-	</div>
-	)}
-	</div>
-	</div>
-	);
-	}
-	
-	const root = ReactDOM.createRoot(document.getElementById('root'));
-	root.render(<App />);
-	</script>
-	</body>
-	</html>
-	
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chapel Multisig • Local Transaction Workspace</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
+<style>
+:root{--bg:#0c0e11;--panel:#15191f;--panel2:#101318;--line:#2b313a;--text:#eef2f7;--muted:#9ba6b5;--gold:#f0b90b;--green:#6ee7a8;--red:#ff8585}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer;border-radius:9px;padding:10px 14px;font-weight:700;border:1px solid var(--gold);background:var(--gold);color:#141414}button.secondary{background:transparent;color:var(--gold)}button.danger{border-color:#7d3438;color:#ffb4b4;background:#2a1719}button:disabled{opacity:.45;cursor:not-allowed}.shell{max-width:1240px;margin:auto;padding:24px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}.brand{display:flex;gap:12px;align-items:center}.logo{width:42px;height:42px;display:grid;place-items:center;background:var(--gold);color:#111;font-size:21px;font-weight:900;border-radius:12px}.sub,.muted{color:var(--muted)}.pill{border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--muted);font-size:12px}.notice{border:1px solid #67551b;background:#211d10;border-radius:12px;padding:12px 15px;margin-bottom:18px;color:#f7dfa0}.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(330px,.9fr);gap:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:19px;margin-bottom:18px;min-width:0}.card h2{font-size:17px;margin:0 0 5px}.card h3{font-size:14px;margin:0 0 12px;color:var(--gold)}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:120px}.field{margin:12px 0}.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}.field input,.field textarea,.field select,textarea{width:100%;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:9px;padding:11px;outline:none}.field textarea{min-height:90px;resize:vertical;font-family:ui-monospace,SFMono-Regular,monospace}.mono{font-family:ui-monospace,SFMono-Regular,monospace;overflow-wrap:anywhere}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.actions button{flex:1}.status{margin-top:12px;border:1px solid var(--line);border-radius:9px;padding:10px;color:var(--muted);overflow-wrap:anywhere}.status.ok{border-color:#245c40;color:var(--green)}.status.err{border-color:#713438;color:var(--red)}.txitem{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:12px;margin-top:10px}.txhead{display:flex;justify-content:space-between;gap:10px;align-items:center}.txhead strong{font-size:13px}.small{font-size:12px}.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}iframe{width:100%;height:420px;border:1px solid var(--line);border-radius:10px;background:#fff}.empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}.footer{font-size:12px;color:var(--muted);padding:8px 0 25px}.check{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:12px}.check input{margin-top:4px}@media(max-width:850px){.grid{grid-template-columns:1fr}.shell{padding:14px}.card{padding:15px}.split{grid-template-columns:1fr}iframe{height:350px}}
+</style>
+</head>
+<body><main class="shell">
+<header class="top"><div class="brand"><div class="logo">B</div><div><strong>Chapel Multisig Workspace</strong><div class="sub small">Local-first transaction builder • no backend / no database</div></div></div><div class="row" style="flex:0 1 auto"><span class="pill">BNB Smart Chain Testnet · chainId 97</span><button id="connectBtn">Connect wallet</button></div></header>
+<div class="notice"><strong>Important:</strong> this is a local transaction-package builder, not a replacement for Safe’s on-chain signature verification. It never treats a personal message signature as a multisig approval and never executes imported data automatically. Review the recipient, value, calldata and chain before signing or executing through your actual multisig.</div>
+<div class="grid"><section>
+<div class="card"><h2>1. Workspace</h2><p class="muted small">The package is kept in this browser tab only. Export it to share with other signers; no account or transaction history is uploaded.</p><div class="field"><label>Target Safe / multisig contract address</label><input id="safeAddress" placeholder="0x…" spellcheck="false"></div><div class="row"><div class="field"><label>Chain ID</label><input id="chainId" value="97" inputmode="numeric"></div><div class="field"><label>Package label (optional)</label><input id="packageLabel" placeholder="e.g. Pool parameter update"></div></div><div class="status" id="walletStatus">Wallet disconnected. You can still build and export transactions offline.</div></div>
+<div class="card"><h2>2. Add a transaction</h2><p class="muted small">Enter a contract call manually or use the ABI encoder below. The resulting transaction is stored as <code>to</code>, <code>value</code> and <code>data</code>.</p><div class="field"><label>Destination contract</label><input id="to" placeholder="0x…" spellcheck="false"></div><div class="row"><div class="field"><label>Native BNB value (decimal)</label><input id="value" value="0" placeholder="0.0"></div><div class="field"><label>Short description</label><input id="description" placeholder="e.g. Update pool fee"></div></div><div class="field"><label>Calldata (hex, 0x-prefixed)</label><textarea id="data" class="mono" placeholder="0x…"></textarea></div>
+<details><summary style="cursor:pointer;color:var(--gold);font-weight:700">Custom dApp execution function / ABI encoder</summary><div class="field"><label>Contract ABI (JSON array or human-readable ABI fragments)</label><textarea id="abi" placeholder='["function setFee(uint256 fee)", "function pause()"]'></textarea></div><div class="field"><label>Function</label><select id="functionSelect"><option value="">Paste ABI and load functions</option></select></div><div class="field"><label>Function arguments (JSON array)</label><textarea id="args" placeholder='[250] or []'></textarea></div><div class="actions"><button class="secondary" id="loadAbiBtn">Load ABI functions</button><button class="secondary" id="encodeBtn">Encode calldata</button></div></details>
+<div class="actions"><button id="addTxBtn">Add transaction to package</button><button id="clearFormBtn" class="secondary">Clear form</button></div><div id="builderStatus" class="status">Ready. Nothing has been sent to the blockchain.</div></div>
+<div class="card"><h2>3. Import a custom dApp UI</h2><p class="muted small">Load a dApp in an iframe for reference. For security, this page does not intercept arbitrary iframe messages as transactions; copy the destination and calldata from the dApp’s supported export/preview flow and review them above.</p><div class="field"><label>Custom dApp URL (HTTPS recommended)</label><input id="dappUrl" placeholder="https://your-testnet-dapp.example"></div><div class="actions"><button id="loadDappBtn">Load dApp preview</button><button class="secondary" id="removeDappBtn">Remove preview</button></div><div id="dappHost" style="margin-top:12px"><div class="empty">No custom dApp loaded.</div></div></div>
+</section><aside>
+<div class="card"><h2>4. Transaction package</h2><div class="row"><span class="pill" id="txCount">0 transactions</span><span class="pill" id="packageBytes">0 bytes</span></div><div id="txList" style="margin-top:12px"><div class="empty">Add a transaction to begin.</div></div><div class="actions"><button id="exportJsonBtn">Download JSON</button><button id="exportHexBtn" class="secondary">Download HEX</button></div><div class="actions"><button id="copyJsonBtn" class="secondary">Copy JSON</button><button id="copyHexBtn" class="secondary">Copy HEX</button></div><div class="field"><label>Portable package preview</label><textarea id="packagePreview" class="mono" readonly placeholder="Exportable package will appear here"></textarea></div></div>
+<div class="card"><h2>5. Import a package</h2><p class="muted small">Import a JSON file or paste a package/HEX export from another signer. Importing only stages transactions for review; it does not sign or execute them.</p><div class="field"><label>Choose JSON or TXT file</label><input type="file" id="importFile" accept=".json,.txt,.hex,application/json,text/plain"></div><div class="field"><label>Paste package JSON or HEX</label><textarea id="importText" class="mono" placeholder="Paste exported package here"></textarea></div><div class="actions"><button id="importBtn">Import for review</button><button class="secondary" id="clearPackageBtn">Clear package</button></div><div id="importStatus" class="status">No package imported.</div></div>
+<div class="card"><h2>6. Before multisig signing</h2><ul class="muted small" style="padding-left:18px"><li>Verify chain ID is 97 and verify the Safe address independently.</li><li>Inspect every target, native value and calldata selector.</li><li>Confirm the nonce and Safe transaction fields using the actual Safe contract/UI.</li><li>Collect Safe-compatible transaction signatures and execute through the Safe contract or trusted Safe interface.</li></ul><div class="status">No private keys are requested by this app. Wallet connection is only used to display the account/network; transaction broadcast is intentionally not implemented.</div></div>
+</aside></div><div class="footer">Local-only package handling. CDN libraries and custom dApp previews still require network access. Never import a package and approve it without independent verification.</div></main>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const state = { transactions: [], abiInterface: null, wallet: null, account: '' };
+const CHAIN_ID = 97;
+function status(id, msg, kind='') { const el=$(id); el.textContent=msg; el.className='status'+(kind?' '+kind:''); }
+function validAddress(v, label) { if (!window.ethers || !ethers.utils.isAddress(v)) throw new Error(label+' must be a valid EVM address.'); return ethers.utils.getAddress(v); }
+function currentPackage() {
+ const chainId=Number($('chainId').value);
+ if (!Number.isSafeInteger(chainId) || chainId<1) throw new Error('Chain ID must be a positive integer.');
+ const safeRaw=$('safeAddress').value.trim();
+ const safeAddress=safeRaw ? validAddress(safeRaw,'Safe address') : '';
+ return { format:'local-multisig-package', version:1, chainId, safeAddress, label:$('packageLabel').value.trim(), createdAt:new Date().toISOString(), transactions:state.transactions.map((t,i)=>({index:i+1,to:t.to,value:t.value,data:t.data,description:t.description||''})) };
+}
+function serialize(){return JSON.stringify(currentPackage(),null,2)}
+function toHexText(text){return '0x'+Array.from(new TextEncoder().encode(text)).map(b=>b.toString(16).padStart(2,'0')).join('')}
+function fromHexText(hex){if(!/^0x(?:[0-9a-fA-F]{2})*$/.test(hex)) throw new Error('HEX package must be 0x-prefixed and contain whole bytes.'); const bytes=new Uint8Array((hex.length-2)/2); for(let i=0;i<bytes.length;i++)bytes[i]=parseInt(hex.slice(2+i*2,4+i*2),16);return new TextDecoder('utf-8',{fatal:true}).decode(bytes)}
+function download(name, text, type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function refresh(){
+ let text=''; try{text=serialize();$('packagePreview').value=text;}catch(e){$('packagePreview').value='Fix workspace fields to preview package: '+e.message;}
+ $('txCount').textContent=state.transactions.length+' transaction'+(state.transactions.length===1?'':'s');$('packageBytes').textContent=new TextEncoder().encode(text).length+' bytes';
+ const host=$('txList');host.replaceChildren();
+ if(!state.transactions.length){host.innerHTML='<div class="empty">Add a transaction to begin.</div>';return;}
+ state.transactions.forEach((t,i)=>{const card=document.createElement('div');card.className='txitem';const head=document.createElement('div');head.className='txhead';const title=document.createElement('strong');title.textContent=(i+1)+'. '+(t.description||'Contract transaction');const remove=document.createElement('button');remove.className='danger';remove.textContent='Remove';remove.style.padding='5px 8px';remove.addEventListener('click',()=>{state.transactions.splice(i,1);refresh();});head.append(title,remove);const body=document.createElement('div');body.className='mono small muted';body.textContent='To: '+t.to+'\nValue: '+t.value+' BNB\nData: '+(t.data.length>130?t.data.slice(0,126)+'…':t.data);card.append(head,body);host.append(card);});
+}
+function validateTx(raw){const to=validAddress(String(raw.to||''),'Transaction destination');const value=String(raw.value??'0');if(!/^(?:\d+)(?:\.\d+)?$/.test(value))throw new Error('BNB value must be a non-negative decimal number.');ethers.utils.parseEther(value);const data=String(raw.data||'0x');if(!/^0x(?:[0-9a-fA-F]{2})*$/.test(data))throw new Error('Calldata must be 0x-prefixed hex with an even number of hex digits.');return {to,value,data:data.toLowerCase(),description:String(raw.description||'').slice(0,200)};}
+$('connectBtn').addEventListener('click',async()=>{try{if(!window.ethereum)throw new Error('No injected wallet found.');const accounts=await window.ethereum.request({method:'eth_requestAccounts'});const chain=await window.ethereum.request({method:'eth_chainId'});state.account=accounts[0]||'';$('walletStatus').textContent='Connected: '+state.account+' · wallet chain ID '+parseInt(chain,16)+(parseInt(chain,16)===CHAIN_ID?' (Chapel testnet)':' (switch wallet to chain ID 97 for testnet work).');$('connectBtn').textContent=state.account?state.account.slice(0,6)+'…'+state.account.slice(-4):'Connect wallet';status('walletStatus',$('walletStatus').textContent,parseInt(chain,16)===CHAIN_ID?'ok':'err');}catch(e){status('walletStatus','Wallet connection failed: '+e.message,'err');}});
+$('addTxBtn').addEventListener('click',()=>{try{const tx=validateTx({to:$('to').value.trim(),value:$('value').value.trim()||'0',data:$('data').value.trim()||'0x',description:$('description').value.trim()});state.transactions.push(tx);refresh();status('builderStatus','Transaction added locally. No blockchain request was made.','ok');}catch(e){status('builderStatus',e.message,'err');}});
+$('clearFormBtn').addEventListener('click',()=>{['to','value','description','data'].forEach(id=>$(id).value=id==='value'?'0':'');status('builderStatus','Form cleared. Existing package transactions were not changed.');});
+$('loadAbiBtn').addEventListener('click',()=>{try{const text=$('abi').value.trim();if(!text)throw new Error('Paste an ABI first.');let abi;try{abi=JSON.parse(text);}catch(_){abi=text.split(/\n+/).map(s=>s.trim()).filter(Boolean);}state.abiInterface=new ethers.utils.Interface(abi);const sel=$('functionSelect');sel.replaceChildren();state.abiInterface.fragments.filter(f=>f.type==='function').forEach(f=>{const op=document.createElement('option');op.value=f.format(ethers.utils.FormatTypes.sighash);op.textContent=f.format(ethers.utils.FormatTypes.full);sel.append(op);});if(!sel.options.length)throw new Error('No functions found in ABI.');status('builderStatus','Loaded '+sel.options.length+' ABI functions.','ok');}catch(e){status('builderStatus','ABI error: '+e.message,'err');}});
+$('encodeBtn').addEventListener('click',()=>{try{if(!state.abiInterface)throw new Error('Load an ABI first.');const fn=$('functionSelect').value;if(!fn)throw new Error('Choose a function.');const argsText=$('args').value.trim()||'[]';const args=JSON.parse(argsText);if(!Array.isArray(args))throw new Error('Arguments must be a JSON array.');$('data').value=state.abiInterface.encodeFunctionData(fn,args);status('builderStatus','Calldata encoded. Review it before adding the transaction.','ok');}catch(e){status('builderStatus','Encoding error: '+e.message,'err');}});
+$('exportJsonBtn').addEventListener('click',()=>{try{const s=serialize();download('chapel-multisig-package.json',s,'application/json');}catch(e){status('importStatus',e.message,'err');}});
+$('exportHexBtn').addEventListener('click',()=>{try{download('chapel-multisig-package.hex',toHexText(serialize()),'text/plain');}catch(e){status('importStatus',e.message,'err');}});
+$('copyJsonBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(serialize());status('importStatus','Package JSON copied to clipboard.','ok');}catch(e){$('packagePreview').focus();$('packagePreview').select();status('importStatus','Clipboard permission unavailable; package preview selected for manual copy.');}});
+$('copyHexBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(toHexText(serialize()));status('importStatus','UTF-8 JSON encoded as HEX and copied.','ok');}catch(e){$('packagePreview').value=toHexText(serialize());$('packagePreview').focus();$('packagePreview').select();status('importStatus','Clipboard permission unavailable; HEX is shown in package preview for manual copy.');}});
+$('importFile').addEventListener('change',async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{$('importText').value=await file.text();status('importStatus','File loaded into import box. Click Import for review to validate it.');}catch(err){status('importStatus','Could not read file: '+err.message,'err');}});
+function parseImport(text){let input=text.trim();if(!input)throw new Error('Paste or choose a package first.');if(/^0x[0-9a-fA-F]+$/.test(input)){try{input=fromHexText(input);}catch(e){throw new Error('Could not decode HEX text: '+e.message);}}const obj=JSON.parse(input);if(!obj||obj.format!=='local-multisig-package'||obj.version!==1||!Array.isArray(obj.transactions))throw new Error('Unsupported package. Expected local-multisig-package version 1.');const chainId=Number(obj.chainId);if(!Number.isSafeInteger(chainId)||chainId<1)throw new Error('Package chain ID is invalid.');if(obj.safeAddress)validAddress(obj.safeAddress,'Imported Safe address');if(chainId!==Number($('chainId').value))throw new Error('Package chain ID ('+chainId+') does not match the workspace chain ID ('+$('chainId').value+'). Change the workspace chain explicitly after verifying the network.');const txs=obj.transactions.map(t=>validateTx(t));return {obj,txs};}
+$('importBtn').addEventListener('click',()=>{try{const {obj,txs}=parseImport($('importText').value);const safeNow=$('safeAddress').value.trim();if(safeNow&&obj.safeAddress&&validAddress(safeNow,'Workspace Safe address')!==validAddress(obj.safeAddress,'Imported Safe address'))throw new Error('Imported package Safe address does not match workspace Safe address.');if(!safeNow&&obj.safeAddress)$('safeAddress').value=obj.safeAddress;if(!safeNow&&!obj.safeAddress)throw new Error('Set the target Safe address in the workspace before importing an unsigned package.');state.transactions=txs;$('packageLabel').value=obj.label||'';refresh();status('importStatus','Imported '+txs.length+' transaction(s) for review only. Nothing was signed or broadcast.','ok');}catch(e){status('importStatus','Import rejected: '+e.message,'err');}});
+$('clearPackageBtn').addEventListener('click',()=>{state.transactions=[];refresh();status('importStatus','Local transaction package cleared.');});
+$('loadDappBtn').addEventListener('click',()=>{try{const u=new URL($('dappUrl').value.trim());if(u.protocol!=='https:'&&u.hostname!=='localhost'&&u.hostname!=='127.0.0.1')throw new Error('Use HTTPS for remote dApps.');const frame=document.createElement('iframe');frame.title='Custom dApp preview';frame.loading='lazy';frame.referrerPolicy='no-referrer';frame.sandbox='allow-scripts allow-forms allow-same-origin allow-popups';frame.src=u.href;const note=document.createElement('p');note.className='muted small';note.textContent='Preview only. This frame is not trusted to propose or execute transactions automatically. If the site blocks iframe embedding, open it in a separate tab and copy its reviewed transaction data.';const host=$('dappHost');host.replaceChildren(note,frame);}catch(e){status('builderStatus','dApp URL error: '+e.message,'err');}});
+$('removeDappBtn').addEventListener('click',()=>{$('dappHost').innerHTML='<div class="empty">No custom dApp loaded.</div>';});
+$('chainId').addEventListener('change',refresh);$('safeAddress').addEventListener('change',refresh);$('packageLabel').addEventListener('input',refresh);
+if(window.ethereum){window.ethereum.on?.('chainChanged',chain=>{const id=parseInt(chain,16);status('walletStatus','Wallet network changed to chain ID '+id+(id===CHAIN_ID?' (Chapel testnet)':''),id===CHAIN_ID?'ok':'err');});window.ethereum.on?.('accountsChanged',accounts=>{state.account=accounts[0]||'';status('walletStatus',state.account?'Connected: '+state.account:'Wallet disconnected.');});}
+refresh();
+})();
+</script></body></html>
 

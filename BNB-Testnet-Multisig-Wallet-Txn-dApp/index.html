@@ -40,6 +40,16 @@ input,textarea,select{width:100%;background:#0b0e12;color:var(--text);border:1px
   <div><label for="appUrl">Or load an HTTPS dApp URL</label><input id="appUrl" placeholder="https://your-testnet-dapp.example"></div>
  </div>
  <div class="actions"><button id="loadUrl" class="primary">Load URL</button><button id="openUrlTab">Open URL in new tab</button><button id="unloadApp">Unload dApp</button><span id="appLabel" class="pill">No dApp loaded</span></div>
+ <div class="callout small" style="margin-top:12px">
+  <strong>Want the custom app connected to the real Safe?</strong>
+  This workspace cannot pass Safe wallet access into its own iframe. Open the Safe interface, then add the custom app there so Safe itself hosts it.
+  <div class="actions">
+   <button id="openSafeWallet" class="primary" type="button">Open BNB Chain Safe Wallet</button>
+   <button id="copyCustomAppUrl" type="button">Copy custom app URL</button>
+  </div>
+  <p class="small">In the Safe interface, select <strong>Apps → Add Custom App</strong> and paste <code>https://usdtinrp-testnet.system4trading.com/</code>. Make sure the Safe interface is on BNB Smart Chain Testnet and only add the app if you trust its source.</p>
+  <p id="safeLaunchStatus" class="small muted" aria-live="polite">Opening Safe does not automatically add the app or connect it to this iframe.</p>
+ </div>
  <iframe id="appFrame" title="Sandboxed custom dApp" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer"></iframe>
  <div class="callout small warning">Treat imported apps as untrusted. Inspect the source before use. Review every proposed destination, value, calldata byte and operation. DelegateCall (1) is especially sensitive.</div>
  <div id="appProtocolState" class="status" aria-live="polite">Host protocol idle. Load a dApp to start the Safe Apps handshake or safe-workspace/v2 bridge.</div>
@@ -305,6 +315,17 @@ $("appFile").addEventListener("change",async e=>{const f=e.target.files?.[0];if(
 function loadRemoteUrl(){try{const raw=$("appUrl").value.trim();if(!raw)throw Error("Enter the full dApp URL.");const u=new URL(raw);const localHttp=(u.protocol==="http:"&&(u.hostname==="localhost"||u.hostname==="127.0.0.1"||u.hostname==="[::1]"));if(u.protocol!=="https:"&&!localHttp)throw Error("Use an HTTPS URL (HTTP is allowed only for localhost development). ");unloadApp();const frame=$("appFrame");frame.removeAttribute("srcdoc");frame.setAttribute("sandbox",u.origin!==location.origin?"allow-scripts allow-forms allow-same-origin":"allow-scripts allow-forms");frame.src=u.href;state.importedApp={label:u.href,kind:"url"};$("appLabel").textContent=u.hostname;$("appProtocolState").textContent="Navigating to URL. The browser may block embedding if the site sends X-Frame-Options or restrictive Content-Security-Policy frame-ancestors headers. Waiting for Safe Apps SDK handshake…";log("Navigating iframe to "+u.href);
  if(state.appLoadTimer)clearTimeout(state.appLoadTimer);state.appLoadTimer=setTimeout(()=>{if(state.importedApp?.label===u.href&&!state.appHandshake){$("appProtocolState").textContent="The iframe navigated but no Safe Apps handshake was received. Possible causes: X-Frame-Options/CSP frame-ancestors blocking, app is not a Safe Apps SDK app, a JavaScript/CDN error, or an origin/bridge mismatch. This browser-only page cannot bypass a site's anti-iframe policy. Try the site's embeddable app URL, or download its HTML bundle and use Local upload.";}},8000);
  }catch(e){$("appProtocolState").textContent="Could not load URL: "+e.message;log("Could not load URL: "+e.message);}}
+$("openSafeWallet").addEventListener("click",()=>{
+ try {
+  const w=window.open("https://multisig.bnbchain.org/","_blank","noopener,noreferrer");
+  $("safeLaunchStatus").textContent=w===null?"The browser blocked the new tab. Allow pop-ups for this page, then click Open BNB Chain Safe Wallet again.":"Opened the BNB Chain Safe interface in a new tab. In that tab, use Apps → Add Custom App and paste the custom app URL shown here.";
+ } catch(e) { $("safeLaunchStatus").textContent="Could not open Safe interface: "+e.message; }
+});
+$("copyCustomAppUrl").addEventListener("click",async()=>{
+ const appUrl="https://usdtinrp-testnet.system4trading.com/";
+ try { await navigator.clipboard.writeText(appUrl); $("safeLaunchStatus").textContent="Copied custom app URL. In the Safe interface, use Apps → Add Custom App and paste it."; }
+ catch(e) { $("safeLaunchStatus").textContent="Clipboard access was blocked. Copy this URL manually: "+appUrl; }
+});
 $("loadUrl").addEventListener("click",loadRemoteUrl);
 $("appUrl").addEventListener("keydown",e=>{if(e.key==="Enter")loadRemoteUrl();});
 $("openUrlTab").addEventListener("click",()=>{try{const raw=$("appUrl").value.trim();if(!raw)throw Error("Enter a URL first.");const u=new URL(raw);if(!["https:","http:"].includes(u.protocol))throw Error("Only web URLs can be opened.");window.open(u.href,"_blank","noopener,noreferrer");log("Opened URL in a separate tab for diagnostics. This does not connect that tab to the Safe Apps bridge.");}catch(e){log("Could not open URL: "+e.message);}});

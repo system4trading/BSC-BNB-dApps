@@ -1,516 +1,917 @@
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>INRP Partner Wrapper — BSC Testnet</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js"></script>
-  <style>
-    :root {
-      --bg:#0b1020; --panel:#141c31; --panel2:#10182b;
-      --border:#263451; --text:#eef3ff; --muted:#9aa9c4;
-      --blue:#6c8cff; --green:#39d6a0; --red:#ff7185;
-    }
-    * { box-sizing:border-box; }
-    body {
-      margin:0; background:var(--bg); color:var(--text);
-      font:15px/1.5 Inter,system-ui,Arial,sans-serif;
-    }
-    header {
-      padding:24px max(20px,calc((100% - 1180px)/2));
-      border-bottom:1px solid var(--border);
-      background:#0e1629;
-      display:flex; align-items:center; justify-content:space-between;
-      gap:16px; flex-wrap:wrap;
-    }
-    h1 { margin:0; font-size:22px; }
-    h2 { font-size:17px; margin:0 0 16px; }
-    h3 { font-size:14px; margin:0 0 12px; color:#cbd7f0; }
-    main { max-width:1180px; margin:26px auto; padding:0 18px 60px; }
-    .muted { color:var(--muted); font-size:13px; }
-    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
-    .grid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-    .card {
-      background:var(--panel); border:1px solid var(--border);
-      border-radius:14px; padding:20px; margin-bottom:16px; min-width:0;
-    }
-    .wide { grid-column:1/-1; }
-    label { display:block; font-size:13px; color:var(--muted); margin:12px 0 6px; }
-    input {
-      width:100%; padding:12px; color:var(--text); background:var(--panel2);
-      border:1px solid var(--border); border-radius:8px; outline:none;
-    }
-    input:focus { border-color:var(--blue); }
-    button {
-      border:0; border-radius:8px; padding:11px 15px; cursor:pointer;
-      color:white; background:var(--blue); font-weight:650; margin:8px 6px 0 0;
-    }
-    button.secondary { background:#2b3958; }
-    button.green { background:#138b69; }
-    button.red { background:#a63e55; }
-    button:disabled { opacity:.45; cursor:not-allowed; }
-    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .stat {
-      background:var(--panel2); padding:13px; border:1px solid var(--border);
-      border-radius:9px; overflow-wrap:anywhere;
-    }
-    .stat small { display:block; color:var(--muted); margin-bottom:5px; }
-    .stat strong { font-size:14px; }
-    .status {
-      padding:12px; border-radius:8px; background:var(--panel2);
-      border:1px solid var(--border); white-space:pre-wrap; overflow-wrap:anywhere;
-      margin:12px 0;
-    }
-    .good { color:var(--green); }
-    .bad { color:var(--red); }
-    .hidden { display:none; }
-    a { color:#9bb2ff; }
-    code { overflow-wrap:anywhere; }
-    @media(max-width:760px) {
-      .grid,.grid3 { grid-template-columns:1fr; }
-      header { align-items:flex-start; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>INRP Partner Wrapper â€” BSC Testnet</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@safe-global/safe-apps-sdk@9.0.0/dist/safe-apps-sdk.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;max-width:1160px;margin:auto;padding:20px;background:#f5f6f8;color:#18202a}
+h1,h2,h3,h4{margin-top:0}
+.card{background:white;border:1px solid #ddd;border-radius:10px;padding:18px;margin:14px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.field{flex:1;min-width:190px}
+input,select,button{width:100%;box-sizing:border-box;padding:11px;margin:5px 0;border:1px solid #bbb;border-radius:6px}
+button{cursor:pointer;font-weight:600}
+.primary{background:#222;color:white}
+.secondary{background:#e9edf3}
+.danger{background:#7a1f1f;color:white}
+.small{font-size:13px;color:#59636e;overflow-wrap:anywhere}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.stat{border:1px solid #ddd;border-radius:8px;padding:12px;overflow-wrap:anywhere}
+.stat b{display:block;font-size:15px;margin-top:5px}
+.hidden{display:none!important}
+.ok{color:#126b2e}.warn{color:#8a5a00}.err{color:#9b1c1c}
+.notice{padding:10px;border-radius:7px;background:#f1f2f4;margin:8px 0}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f8fa;padding:10px;border-radius:7px}
+.swap-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.swap-panel{border:1px solid #ddd;border-radius:9px;padding:15px;min-width:0}
+.swap-actions{display:flex;flex-direction:column;gap:7px}
+.swap-actions button{margin:0}
+label{display:block;margin-top:8px;font-size:13px}
+hr{border:0;border-top:1px solid #eee;margin:18px 0}
+@media(max-width:700px){.swap-grid{grid-template-columns:1fr}body{padding:10px}}
+</style>
 </head>
 <body>
-<header>
-  <div>
-    <h1>INRP Partner Wrapper</h1>
-    <div class="muted">BSC Testnet · Chain ID 97</div>
-  </div>
-  <div class="row">
-    <span id="walletLabel" class="muted">Wallet not connected</span>
-    <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
-  </div>
-</header>
 
-<main>
-  <div class="card">
-    <h2>Load Partner Wrapper</h2>
-    <p class="muted">
-      Enter the address of the partner wrapper deployment you want to use.
-      This field is deliberately not prefilled.
-    </p>
-    <label for="wrapperAddress">Wrapper contract address</label>
-    <input id="wrapperAddress" placeholder="Paste your wrapper contract address (0x...)" />
-    <div class="row">
-      <button onclick="loadWrapper()">Load Contract</button>
-      <button class="secondary" onclick="switchNetwork()">Switch to BSC Testnet</button>
-    </div>
-    <div id="loadStatus" class="status">No wrapper loaded.</div>
-  </div>
+<h1>INRP Partner Wrapper</h1>
+<p class="small">BSC Testnet â€¢ Chain ID 97 â€¢ Partner swap and fee management interface</p>
 
-  <section id="app" class="hidden">
-    <div class="card">
-      <h2>Contract Overview</h2>
-      <div class="grid3">
-        <div class="stat"><small>Wrapper</small><strong id="sWrapper">—</strong></div>
-        <div class="stat"><small>Owner</small><strong id="sOwner">—</strong></div>
-        <div class="stat"><small>Underlying adapter</small><strong id="sAdapter">—</strong></div>
-        <div class="stat"><small>USDT</small><strong id="sUsdt">—</strong></div>
-        <div class="stat"><small>INRP</small><strong id="sInrp">—</strong></div>
-        <div class="stat"><small>Partner fee</small><strong id="sFee">—</strong></div>
-        <div class="stat"><small>Maximum partner fee</small><strong id="sMaxFee">—</strong></div>
-        <div class="stat"><small>Automatic fee transfer</small><strong id="sAuto">—</strong></div>
-        <div class="stat"><small>Paused</small><strong id="sPaused">—</strong></div>
-      </div>
-      <button class="secondary" onclick="refreshOverview()">Refresh Contract Data</button>
-    </div>
+<div class="card">
+<h2>1. Wallet Connection</h2>
+<div class="row">
+<div class="field"><button class="primary" id="connectInjected">Connect Injected Wallet</button></div>
+<div class="field"><button id="connectWC">Connect with WalletConnect</button></div>
+<div class="field"><button id="switchBsc">Switch to BSC Testnet</button></div>
+<div class="field"><button id="disconnect">Disconnect</button></div>
+</div>
+<div id="wallet">Not connected</div>
+<div id="network" class="small"></div>
+<div id="walletMode" class="small"></div>
+<div id="safeStatus" class="small"></div>
+<p class="small">WalletConnect requires your own WalletConnect Cloud Project ID in the configuration below. Safe Custom App mode is detected separately.</p>
+</div>
 
-    <div class="grid">
-      <div class="card">
-        <h2>Buy INRP</h2>
-        <p class="muted">Enter the USDT trade amount and your minimum acceptable INRP output.</p>
-        <label>USDT amount</label>
-        <input id="buyAmount" type="number" min="0" step="any" placeholder="USDT amount" />
-        <label>Minimum INRP output</label>
-        <input id="buyMinOut" type="number" min="0" step="any" placeholder="Minimum INRP received" />
-        <label>Maximum partner fee (USDT)</label>
-        <input id="buyMaxFee" type="number" min="0" step="any" placeholder="Maximum fee you accept" />
-        <label>Authorized signature (bytes)</label>
-        <input id="buySignature" placeholder="0x..." />
-        <div class="row">
-          <button class="secondary" onclick="quoteFee(true)">Quote Partner Fee</button>
-          <button class="secondary" onclick="approveTrade(true)">Approve USDT</button>
-          <button class="secondary" onclick="approveFee(true)">Approve Fee</button>
-          <button class="green" onclick="executeTrade(true)">Buy INRP</button>
-        </div>
-        <div id="buyQuote" class="status">Fee quote not requested.</div>
-      </div>
+<div class="card">
+<h2>2. Load Partner Wrapper</h2>
+<label>Partner wrapper contract address</label>
+<input id="wrapperAddress" placeholder="Paste your wrapper deployment address (0x...)">
+<div class="row">
+<div class="field"><button class="primary" id="loadWrapper">Load Wrapper Contract</button></div>
+<div class="field"><button id="refresh">Refresh Contract Data</button></div>
+</div>
+<div id="wrapperStatus" class="notice">No wrapper loaded. Enter a wrapper address to continue.</div>
+<div id="wrapperStats" class="grid"></div>
+</div>
 
-      <div class="card">
-        <h2>Sell INRP</h2>
-        <p class="muted">Enter the INRP trade amount and your minimum acceptable USDT output.</p>
-        <label>INRP amount</label>
-        <input id="sellAmount" type="number" min="0" step="any" placeholder="INRP amount" />
-        <label>Minimum USDT output</label>
-        <input id="sellMinOut" type="number" min="0" step="any" placeholder="Minimum USDT received" />
-        <label>Maximum partner fee (INRP)</label>
-        <input id="sellMaxFee" type="number" min="0" step="any" placeholder="Maximum fee you accept" />
-        <label>Authorized signature (bytes)</label>
-        <input id="sellSignature" placeholder="0x..." />
-        <div class="row">
-          <button class="secondary" onclick="quoteFee(false)">Quote Partner Fee</button>
-          <button class="secondary" onclick="approveTrade(false)">Approve INRP</button>
-          <button class="secondary" onclick="approveFee(false)">Approve Fee</button>
-          <button class="green" onclick="executeTrade(false)">Sell INRP</button>
-        </div>
-        <div id="sellQuote" class="status">Fee quote not requested.</div>
-      </div>
-    </div>
+<section id="mainUI" class="hidden">
 
-    <div class="card">
-      <h2>Partner Fee Accounting</h2>
-      <p class="muted">View the connected partner's fee accounting for either token.</p>
-      <div class="row">
-        <button class="secondary" onclick="loadAccounting(true)">USDT Accounting</button>
-        <button class="secondary" onclick="loadAccounting(false)">INRP Accounting</button>
-      </div>
-      <div id="accounting" class="status">Select a token to load accounting.</div>
-      <label>Withdrawal amount (token units)</label>
-      <input id="withdrawAmount" type="number" min="0" step="any" placeholder="Amount to withdraw" />
-      <div class="row">
-        <button onclick="withdraw(false)">Withdraw Amount</button>
-        <button class="secondary" onclick="withdraw(true)">Withdraw All</button>
-      </div>
-    </div>
+<div class="card">
+<h2>3. Public Swap</h2>
+<div class="notice">Quotes are read from the loaded partner wrapper. Check the quote, fee and signature authorization before submitting a transaction.</div>
+<div id="publicNotice" class="notice">Connect a wallet and load a wrapper.</div>
 
-    <div class="card">
-      <h2>Owner Controls</h2>
-      <p class="muted">These actions require the connected wallet to be the wrapper owner.</p>
-      <label>New partner fee (basis points)</label>
-      <input id="newFee" type="number" min="0" step="1" placeholder="For example: 100 = 1%" />
-      <div class="row">
-        <button onclick="setFee()">Set Partner Fee</button>
-        <button class="secondary" onclick="setAuto(true)">Enable Auto Fee Transfer</button>
-        <button class="secondary" onclick="setAuto(false)">Disable Auto Fee Transfer</button>
-        <button class="red" onclick="pauseContract()">Pause</button>
-        <button class="green" onclick="unpauseContract()">Unpause</button>
-      </div>
-    </div>
-  </section>
+<div class="notice">
+<strong>Approval Mode</strong>
+<label><input type="radio" name="approvalMode" value="exact" checked style="width:auto"> Exact amount approval</label>
+<label><input type="radio" name="approvalMode" value="unlimited" style="width:auto"> Unlimited approval</label>
+</div>
 
-  <div class="card">
-    <h2>Transaction Status</h2>
-    <div id="txStatus" class="status">Ready.</div>
-  </div>
+<div class="swap-grid">
+<div class="swap-panel">
+<h3>Buy INRP with USDT</h3>
+<label>USDT amount</label>
+<input id="buyAmount" type="number" min="0" step="any" placeholder="Enter USDT amount">
+<label>Minimum INRP received</label>
+<input id="buyMin" type="number" min="0" step="any" placeholder="Enter minimum output">
+<label>Maximum partner fee (USDT)</label>
+<input id="buyMaxFee" type="number" min="0" step="any" placeholder="Maximum fee">
+<label>Authorized signature</label>
+<input id="buySignature" placeholder="0x... signature">
+<div class="swap-actions">
+<button id="quoteBuy">Quote / Refresh Buy</button>
+<pre id="buyQuote">Enter an amount and request a quote.</pre>
+<div id="buyAllowance" class="small"></div>
+<button id="approveBuy" class="secondary">Approve USDT for Trade</button>
+<button id="approveBuyFee" class="secondary">Approve USDT for Partner Fee</button>
+<button id="buy" class="primary">Buy INRP</button>
+<button id="approveBuyAndSwap" class="primary">Approve + Buy INRP</button>
+</div>
+</div>
 
-  <p class="muted">
-    Testnet configuration: BSC Testnet (97). Testnet USDT and INRP addresses are
-    loaded from the wrapper contract. Always verify the wrapper ABI, token addresses,
-    and signer authorization process before using real funds.
-  </p>
-</main>
+<div class="swap-panel">
+<h3>Sell INRP for USDT</h3>
+<label>INRP amount</label>
+<input id="sellAmount" type="number" min="0" step="any" placeholder="Enter INRP amount">
+<label>Minimum USDT received</label>
+<input id="sellMin" type="number" min="0" step="any" placeholder="Enter minimum output">
+<label>Maximum partner fee (INRP)</label>
+<input id="sellMaxFee" type="number" min="0" step="any" placeholder="Maximum fee">
+<label>Authorized signature</label>
+<input id="sellSignature" placeholder="0x... signature">
+<div class="swap-actions">
+<button id="quoteSell">Quote / Refresh Sell</button>
+<pre id="sellQuote">Enter an amount and request a quote.</pre>
+<div id="sellAllowance" class="small"></div>
+<button id="approveSell" class="secondary">Approve INRP for Trade</button>
+<button id="approveSellFee" class="secondary">Approve INRP for Partner Fee</button>
+<button id="sell" class="primary">Sell INRP</button>
+<button id="approveSellAndSwap" class="primary">Approve + Sell INRP</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="card">
+<h2>4. Partner Fee Accounting</h2>
+<div class="row">
+<div class="field">
+<label>Partner address</label>
+<input id="accountingPartner" placeholder="Partner wallet address">
+</div>
+<div class="field">
+<label>Fee token</label>
+<select id="accountingToken">
+<option value="USDT">USDT</option>
+<option value="INRP">INRP</option>
+</select>
+</div>
+</div>
+<button id="loadAccounting">Load Partner Accounting</button>
+<pre id="accountingResult">No accounting data loaded.</pre>
+<label>Withdrawal amount</label>
+<input id="withdrawAmount" type="number" min="0" step="any" placeholder="Amount to withdraw">
+<div class="row">
+<div class="field"><button id="withdrawFees">Withdraw Fee Amount</button></div>
+<div class="field"><button id="withdrawAllFees">Withdraw All Fees</button></div>
+</div>
+</div>
+
+<div class="card">
+<button id="toggleAdmin">Show Owner / Admin Panel</button>
+<section id="adminPanel" class="hidden">
+<h2>5. Owner / Admin Panel</h2>
+<div id="adminNotice" class="notice">Owner functions are available only to the wrapper owner.</div>
+
+<h3>Partner Fee Settings</h3>
+<div class="row">
+<div class="field">
+<label>New partner fee (basis points)</label>
+<input id="newPartnerFee" type="number" min="0" step="1" placeholder="100 = 1%">
+</div>
+<div class="field">
+<label>Maximum partner fee (basis points)</label>
+<input id="maxPartnerFee" readonly>
+</div>
+</div>
+<button id="setPartnerFee" class="primary">Update Partner Fee</button>
+
+<h3>Automatic Fee Transfer</h3>
+<div class="row">
+<div class="field"><button id="enableAuto">Enable Automatic Fee Transfer</button></div>
+<div class="field"><button id="disableAuto">Disable Automatic Fee Transfer</button></div>
+</div>
+
+<h3>Pause Controls</h3>
+<div class="row">
+<div class="field"><button id="pause" class="danger">Pause Wrapper</button></div>
+<div class="field"><button id="unpause" class="primary">Unpause Wrapper</button></div>
+</div>
+
+<h3>Blacklist Controls</h3>
+<label>Wallet address</label>
+<input id="blacklistAddress" placeholder="0x...">
+<div class="row">
+<div class="field"><button id="blacklist">Blacklist Address</button></div>
+<div class="field"><button id="unblacklist">Remove Blacklist</button></div>
+</div>
+
+<h3>Rescue Token</h3>
+<label>Token address</label>
+<input id="rescueTokenAddress" placeholder="BEP-20 token address">
+<label>Recipient address</label>
+<input id="rescueTokenRecipient" placeholder="Recipient address">
+<label>Token amount (human units)</label>
+<input id="rescueTokenAmount" type="number" min="0" step="any" placeholder="Token amount">
+<button id="rescueToken">Rescue Token</button>
+
+<h3>Rescue BNB</h3>
+<label>Recipient address</label>
+<input id="rescueBnbRecipient" placeholder="Recipient address">
+<label>BNB amount</label>
+<input id="rescueBnbAmount" type="number" min="0" step="any" placeholder="BNB amount">
+<button id="rescueBnb">Rescue BNB</button>
+
+<h3>Ownership</h3>
+<label>New owner address</label>
+<input id="newOwner" placeholder="New owner address">
+<button id="transferOwnership">Transfer Ownership</button>
+<button id="renounceOwnership" class="danger">Renounce Ownership</button>
+</section>
+</div>
+
+<div class="card">
+<button id="toggleDeveloper">Show Developer Mode</button>
+<section id="developerPanel" class="hidden">
+<h2>6. Developer Mode</h2>
+<div class="notice">Developer diagnostics, raw ABI reads and writes, partner statistics and fee accounting.</div>
+
+<h3>Contract Diagnostics</h3>
+<button id="diagnostics">Refresh Diagnostics</button>
+<pre id="diagnosticsResult">No diagnostics loaded.</pre>
+
+<hr>
+<h3>Partner Statistics</h3>
+<label>Partner address</label>
+<input id="statsPartner" placeholder="Partner address">
+<button id="loadPartnerStats">Read Partner Statistics</button>
+<pre id="partnerStatsResult">No partner statistics loaded.</pre>
+
+<hr>
+<h3>Global Statistics</h3>
+<button id="loadGlobalStats">Read Global Statistics</button>
+<pre id="globalStatsResult">No global statistics loaded.</pre>
+
+<hr>
+<h3>Raw ABI Read</h3>
+<label>Read function</label>
+<select id="readFunction"></select>
+<div id="readArgs"></div>
+<button id="runRead">Read Function</button>
+<pre id="readResult">Select a function and read.</pre>
+
+<hr>
+<h3>Raw ABI Write</h3>
+<label>Write function</label>
+<select id="writeFunction"></select>
+<div id="writeArgs"></div>
+<button id="runWrite" class="primary">Execute Write Function</button>
+<pre id="writeResult">Select a function and enter its arguments.</pre>
+
+<hr>
+<h3>Transaction / Contract Information</h3>
+<div id="developerInfo" class="small"></div>
+</section>
+</div>
+</section>
+
+<div class="card">
+<h2>7. Transaction Status</h2>
+<div id="txStatus">No transaction yet.</div>
+<div id="txLink"></div>
+</div>
 
 <script>
-const CHAIN_ID = 97;
+"use strict";
+
+/* -------------------------------------------------------
+   CONFIGURATION
+------------------------------------------------------- */
+const CHAIN_ID = 97n;
 const CHAIN_HEX = "0x61";
 const RPC_URL = "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
 const EXPLORER = "https://testnet.bscscan.com";
 
-const WRAPPER_ABI = [
-  "function owner() view returns(address)",
-  "function paused() view returns(bool)",
-  "function USDT() view returns(address)",
-  "function INRP() view returns(address)",
-  "function UNDERLYING_ADAPTER() view returns(address)",
-  "function partnerFeeBps() view returns(uint256)",
-  "function MAX_PARTNER_FEE_BPS() view returns(uint256)",
-  "function autoFeeTransferEnabled() view returns(bool)",
-  "function quoteBuyPartnerFee(uint256) view returns(uint256,uint256,uint256)",
-  "function quoteSellPartnerFee(uint256) view returns(uint256,uint256,uint256)",
-  "function getNonce(address) view returns(uint256)",
-  "function getTradeDigest(address,bool,uint256,uint256,uint256,uint256) view returns(bytes32)",
-  "function getPartnerStats(address) view returns(uint256,uint256,uint256,uint256)",
-  "function getFeeAccounting(address,address) view returns(uint256,uint256,uint256,uint256,uint256)",
-  "function buyINRP(uint256,uint256,uint256,uint256,bytes,uint256,uint256)",
-  "function sellINRP(uint256,uint256,uint256,uint256,bytes,uint256,uint256)",
-  "function withdrawFees(address,uint256)",
-  "function withdrawAllFees(address)",
-  "function setPartnerFee(uint256)",
-  "function setAutoFeeTransfer(bool)",
-  "function pause()",
-  "function unpause()"
+/* Add your own WalletConnect Cloud project ID here. */
+const WC_PROJECT_ID = "ccef25dcfdb87869f9617936952c987d";
+
+const ERC20_ABI = [
+ "function decimals() view returns(uint8)",
+ "function symbol() view returns(string)",
+ "function balanceOf(address) view returns(uint256)",
+ "function allowance(address,address) view returns(uint256)",
+ "function approve(address,uint256) returns(bool)"
 ];
 
-const TOKEN_ABI = [
-  "function decimals() view returns(uint8)",
-  "function symbol() view returns(string)",
-  "function allowance(address,address) view returns(uint256)",
-  "function approve(address,uint256) returns(bool)"
+/* Wrapper ABI: signatures and argument order from the supplied ABI. */
+const ABI = [
+ "function owner() view returns(address)",
+ "function paused() view returns(bool)",
+ "function USDT() view returns(address)",
+ "function INRP() view returns(address)",
+ "function UNDERLYING_ADAPTER() view returns(address)",
+ "function partnerFeeBps() view returns(uint256)",
+ "function MAX_PARTNER_FEE_BPS() view returns(uint256)",
+ "function DEFAULT_PARTNER_FEE_BPS() view returns(uint256)",
+ "function FEE_DENOMINATOR() view returns(uint256)",
+ "function autoFeeTransferEnabled() view returns(bool)",
+ "function blacklisted(address) view returns(bool)",
+ "function blacklistAddress(address)",
+ "function unblacklistAddress(address)",
+ "function quoteBuyPartnerFee(uint256) view returns(uint256,uint256,uint256)",
+ "function quoteSellPartnerFee(uint256) view returns(uint256,uint256,uint256)",
+ "function calculatePartnerFee(uint256) view returns(uint256)",
+ "function getNonce(address) view returns(uint256)",
+ "function getTradeDigest(address,bool,uint256,uint256,uint256,uint256) view returns(bytes32)",
+ "function getPartnerStats(address) view returns(uint256,uint256,uint256,uint256)",
+ "function getGlobalStats() view returns(uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256)",
+ "function getFeeAccounting(address,address) view returns(uint256,uint256,uint256,uint256,uint256)",
+ "function buyINRP(uint256,uint256,uint256,uint256,bytes,uint256,uint256)",
+ "function sellINRP(uint256,uint256,uint256,uint256,bytes,uint256,uint256)",
+ "function withdrawFees(address,uint256)",
+ "function withdrawAllFees(address)",
+ "function setPartnerFee(uint256)",
+ "function setAutoFeeTransfer(bool)",
+ "function pause()",
+ "function unpause()",
+ "function rescueToken(address,address,uint256)",
+ "function rescueBNB(address,uint256)",
+ "function transferOwnership(address)",
+ "function renounceOwnership()",
+ "function totalBuyVolumeUSDT() view returns(uint256)",
+ "function totalSellVolumeINRP() view returns(uint256)",
+ "function totalBuyTrades() view returns(uint256)",
+ "function totalSellTrades() view returns(uint256)",
+ "function totalFeesCollectedUSDT() view returns(uint256)",
+ "function totalFeesCollectedINRP() view returns(uint256)",
+ "function totalFeesPaidUSDT() view returns(uint256)",
+ "function totalFeesPaidINRP() view returns(uint256)",
+ "function totalPendingFeesUSDT() view returns(uint256)",
+ "function totalPendingFeesINRP() view returns(uint256)"
 ];
 
-let provider, signer, account, wrapper, wrapperAddress;
-let adapterAddress, usdtAddress, inrpAddress;
-let usdt, inrp, usdtDecimals, inrpDecimals;
-let selectedAccountingToken = null;
+let provider=null,signer=null,rawProvider=null,account=null;
+let wrapper=null,wrapperAddress=null,adapterAddress=null;
+let usdt=null,inrp=null,usdtAddress=null,inrpAddress=null;
+let usdtDecimals=18,inrpDecimals=18;
+let safeSdk=null,safeInfo=null,safeMode=false;
+let buyQuoteData=null,sellQuoteData=null;
 
-const $ = id => document.getElementById(id);
-const short = a => a ? a.slice(0,6) + "..." + a.slice(-4) : "—";
+const $=id=>document.getElementById(id);
+const err=e=>e?.shortMessage||e?.reason||e?.message||String(e);
+const short=a=>a?a.slice(0,6)+"..."+a.slice(-4):"";
+const approvalMode=()=>document.querySelector('input[name="approvalMode"]:checked')?.value||"exact";
+const txStatus=m=>{$("txStatus").textContent=m;$("txLink").innerHTML="";};
+const fmt=(v,d)=>ethers.formatUnits(v,d);
+const amount=(v,d)=>{if(v===""||v==null)throw Error("Enter an amount.");return ethers.parseUnits(String(v),d);};
+const addr=v=>{if(!ethers.isAddress(v))throw Error("Invalid wallet address: "+v);return ethers.getAddress(v);};
+const linkTx=h=>{$("txLink").innerHTML='<a target="_blank" rel="noopener" href="'+EXPLORER+'/tx/'+h+'">View transaction on BscScan</a>';};
+const setTx=(m,h)=>{txStatus(m);if(h)linkTx(h);};
 
-function status(message, isError=false) {
-  $("txStatus").textContent = message;
-  $("txStatus").className = "status " + (isError ? "bad" : "");
+function requireLoaded(){
+ if(!wrapper)throw Error("Load a wrapper contract first.");
 }
-function loadStatus(message, isError=false) {
-  $("loadStatus").textContent = message;
-  $("loadStatus").className = "status " + (isError ? "bad" : "");
+function requireWallet(){
+ requireLoaded();
+ if(!signer||!account)throw Error("Connect a wallet first.");
 }
-function fmt(value, decimals=18) {
-  try { return ethers.formatUnits(value, decimals); }
-  catch { return String(value); }
-}
-function parse(value, decimals) {
-  if (!value || Number(value) <= 0) throw new Error("Enter an amount greater than zero.");
-  return ethers.parseUnits(value, decimals);
-}
-function requireReady() {
-  if (!signer || !wrapper) throw new Error("Connect wallet and load a wrapper contract first.");
-}
-async function connectWallet() {
-  try {
-    if (!window.ethereum) throw new Error("MetaMask or another injected wallet was not found.");
-    await window.ethereum.request({method:"eth_requestAccounts"});
-    provider = new ethers.BrowserProvider(window.ethereum);
-    signer = await provider.getSigner();
-    account = await signer.getAddress();
-    $("walletLabel").textContent = short(account);
-    $("connectBtn").textContent = "Connected";
-    status("Connected: " + account);
-    const net = await provider.getNetwork();
-    if (Number(net.chainId) !== CHAIN_ID) status("Wallet connected. Switch to BSC Testnet to use the contract.");
-    if (wrapper) await refreshOverview();
-  } catch(e) { status(e.message, true); }
-}
-async function switchNetwork() {
-  try {
-    if (!window.ethereum) throw new Error("Wallet not detected.");
-    try {
-      await window.ethereum.request({
-        method:"wallet_switchEthereumChain",
-        params:[{chainId:CHAIN_HEX}]
-      });
-    } catch(e) {
-      if (e.code !== 4902) throw e;
-      await window.ethereum.request({
-        method:"wallet_addEthereumChain",
-        params:[{
-          chainId:CHAIN_HEX,
-          chainName:"BNB Smart Chain Testnet",
-          nativeCurrency:{name:"tBNB",symbol:"tBNB",decimals:18},
-          rpcUrls:[RPC_URL],
-          blockExplorerUrls:["https://testnet.bscscan.com"]
-        }]
-      });
-    }
-    provider = new ethers.BrowserProvider(window.ethereum);
-    signer = await provider.getSigner();
-    account = await signer.getAddress();
-    $("walletLabel").textContent = short(account);
-    status("Connected to BSC Testnet.");
-  } catch(e) { status(e.message, true); }
-}
-async function loadWrapper() {
-  try {
-    if (!provider) {
-      if (!window.ethereum) throw new Error("Connect a wallet first.");
-      provider = new ethers.BrowserProvider(window.ethereum);
-    }
-    const network = await provider.getNetwork();
-    if (Number(network.chainId) !== CHAIN_ID)
-      throw new Error("Please switch your wallet to BSC Testnet (Chain ID 97).");
-
-    const address = $("wrapperAddress").value.trim();
-    if (!ethers.isAddress(address)) throw new Error("Enter a valid wrapper contract address.");
-    const code = await provider.getCode(address);
-    if (code === "0x") throw new Error("No contract bytecode found at that address on BSC Testnet.");
-
-    wrapperAddress = ethers.getAddress(address);
-    wrapper = new ethers.Contract(wrapperAddress, WRAPPER_ABI, signer || provider);
-
-    adapterAddress = await wrapper.UNDERLYING_ADAPTER();
-    usdtAddress = await wrapper.USDT();
-    inrpAddress = await wrapper.INRP();
-
-    usdt = new ethers.Contract(usdtAddress, TOKEN_ABI, signer || provider);
-    inrp = new ethers.Contract(inrpAddress, TOKEN_ABI, signer || provider);
-    usdtDecimals = Number(await usdt.decimals());
-    inrpDecimals = Number(await inrp.decimals());
-
-    $("app").classList.remove("hidden");
-    loadStatus("Contract loaded: " + wrapperAddress);
-    await refreshOverview();
-  } catch(e) { loadStatus(e.message, true); }
-}
-async function refreshOverview() {
-  try {
-    if (!wrapper) return;
-    const [owner, fee, maxFee, auto, paused] = await Promise.all([
-      wrapper.owner(), wrapper.partnerFeeBps(), wrapper.MAX_PARTNER_FEE_BPS(),
-      wrapper.autoFeeTransferEnabled(), wrapper.paused()
-    ]);
-    $("sWrapper").textContent = short(wrapperAddress);
-    $("sOwner").textContent = short(owner);
-    $("sAdapter").textContent = short(adapterAddress);
-    $("sUsdt").textContent = short(usdtAddress);
-    $("sInrp").textContent = short(inrpAddress);
-    $("sFee").textContent = fee.toString() + " bps (" + (Number(fee)/100).toFixed(2) + "%)";
-    $("sMaxFee").textContent = maxFee.toString() + " bps";
-    $("sAuto").textContent = auto ? "Enabled" : "Disabled";
-    $("sPaused").textContent = paused ? "Yes" : "No";
-  } catch(e) { status("Refresh failed: " + e.message, true); }
-}
-async function quoteFee(isBuy) {
-  try {
-    requireReady();
-    const amount = parse($(isBuy ? "buyAmount" : "sellAmount").value,
-      isBuy ? usdtDecimals : inrpDecimals);
-    const result = isBuy
-      ? await wrapper.quoteBuyPartnerFee(amount)
-      : await wrapper.quoteSellPartnerFee(amount);
-    const decimals = isBuy ? usdtDecimals : inrpDecimals;
-    $(isBuy ? "buyQuote" : "sellQuote").textContent =
-      "Wrapper fee quote (raw tuple):\n" +
-      Array.from(result).map((v,i) => "Value " + (i+1) + ": " + fmt(v,decimals)).join("\n");
-  } catch(e) { status("Fee quote failed: " + e.message, true); }
-}
-async function approveToken(token, spender, amount) {
-  const current = await token.allowance(account, spender);
-  if (current >= amount) {
-    status("Allowance is already sufficient.");
-    return;
-  }
-  const tx = await token.approve(spender, amount);
-  status("Approval submitted: " + EXPLORER + "/tx/" + tx.hash);
-  await tx.wait();
-  status("Approval confirmed: " + EXPLORER + "/tx/" + tx.hash);
-}
-async function approveTrade(isBuy) {
-  try {
-    requireReady();
-    const amount = parse($(isBuy ? "buyAmount" : "sellAmount").value,
-      isBuy ? usdtDecimals : inrpDecimals);
-    const token = isBuy ? usdt : inrp;
-    await approveToken(token, adapterAddress, amount);
-  } catch(e) { status("Trade approval failed: " + e.message, true); }
-}
-async function approveFee(isBuy) {
-  try {
-    requireReady();
-    const decimals = isBuy ? usdtDecimals : inrpDecimals;
-    const maxFee = parse($(isBuy ? "buyMaxFee" : "sellMaxFee").value, decimals);
-    await approveToken(isBuy ? usdt : inrp, wrapperAddress, maxFee);
-  } catch(e) { status("Fee approval failed: " + e.message, true); }
-}
-async function executeTrade(isBuy) {
-  try {
-    requireReady();
-    const amount = parse($(isBuy ? "buyAmount" : "sellAmount").value,
-      isBuy ? usdtDecimals : inrpDecimals);
-    const minOut = parse($(isBuy ? "buyMinOut" : "sellMinOut").value,
-      isBuy ? inrpDecimals : usdtDecimals);
-    const maxFee = parse($(isBuy ? "buyMaxFee" : "sellMaxFee").value,
-      isBuy ? usdtDecimals : inrpDecimals);
-    const signature = $(isBuy ? "buySignature" : "sellSignature").value.trim();
-    if (!ethers.isHexString(signature)) throw new Error("Enter a valid hex signature.");
-    if (signature === "0x") throw new Error("Signature cannot be empty.");
-
-    const nonce = await wrapper.getNonce(account);
-    const deadline = Math.floor(Date.now()/1000) + 900;
-    const digest = await wrapper.getTradeDigest(
-      account, isBuy, amount, minOut, nonce, deadline
-    );
-
-    status("Trade digest: " + digest +
-      "\nNonce: " + nonce.toString() +
-      "\nDeadline: " + deadline +
-      "\nConfirm that the supplied signature was authorized for this exact digest.");
-
-    const feeQuote = isBuy
-      ? await wrapper.quoteBuyPartnerFee(amount)
-      : await wrapper.quoteSellPartnerFee(amount);
-    const quotedFee = feeQuote[0];
-
-    const tx = isBuy
-      ? await wrapper.buyINRP(amount,minOut,nonce,deadline,signature,quotedFee,maxFee)
-      : await wrapper.sellINRP(amount,minOut,nonce,deadline,signature,quotedFee,maxFee);
-
-    status("Trade submitted: " + EXPLORER + "/tx/" + tx.hash);
-    await tx.wait();
-    status("Trade confirmed: " + EXPLORER + "/tx/" + tx.hash);
-    await refreshOverview();
-  } catch(e) { status("Trade failed: " + (e.shortMessage || e.message), true); }
-}
-async function loadAccounting(isUsdt) {
-  try {
-    requireReady();
-    selectedAccountingToken = isUsdt ? usdtAddress : inrpAddress;
-    const result = await wrapper.getFeeAccounting(account, selectedAccountingToken);
-    const decimals = isUsdt ? usdtDecimals : inrpDecimals;
-    $("accounting").textContent =
-      "Partner: " + account + "\nToken: " + selectedAccountingToken + "\n" +
-      Array.from(result).map((v,i) => "Accounting value " + (i+1) + ": " + fmt(v,decimals)).join("\n");
-  } catch(e) { status("Accounting lookup failed: " + e.message, true); }
-}
-async function withdraw(all) {
-  try {
-    requireReady();
-    if (!selectedAccountingToken) throw new Error("Load USDT or INRP accounting first.");
-    const tx = all
-      ? await wrapper.withdrawAllFees(selectedAccountingToken)
-      : await wrapper.withdrawFees(
-          selectedAccountingToken,
-          parse($("withdrawAmount").value,
-            selectedAccountingToken.toLowerCase() === usdtAddress.toLowerCase()
-              ? usdtDecimals : inrpDecimals)
-        );
-    status("Withdrawal submitted: " + EXPLORER + "/tx/" + tx.hash);
-    await tx.wait();
-    status("Withdrawal confirmed: " + EXPLORER + "/tx/" + tx.hash);
-    await loadAccounting(selectedAccountingToken.toLowerCase() === usdtAddress.toLowerCase());
-  } catch(e) { status("Withdrawal failed: " + (e.shortMessage || e.message), true); }
-}
-async function ownerAction(action) {
-  requireReady();
-  const owner = await wrapper.owner();
-  if (owner.toLowerCase() !== account.toLowerCase())
-    throw new Error("Connected wallet is not the wrapper owner.");
-  const tx = await action();
-  status("Transaction submitted: " + EXPLORER + "/tx/" + tx.hash);
-  await tx.wait();
-  status("Transaction confirmed: " + EXPLORER + "/tx/" + tx.hash);
-  await refreshOverview();
-}
-async function setFee() {
-  try {
-    const fee = $("newFee").value;
-    if (!fee || !Number.isInteger(Number(fee)) || Number(fee) < 0)
-      throw new Error("Enter a valid whole-number fee in basis points.");
-    await ownerAction(() => wrapper.setPartnerFee(fee));
-  } catch(e) { status(e.message, true); }
-}
-async function setAuto(enabled) {
-  try { await ownerAction(() => wrapper.setAutoFeeTransfer(enabled)); }
-  catch(e) { status(e.message, true); }
-}
-async function pauseContract() {
-  try { await ownerAction(() => wrapper.pause()); }
-  catch(e) { status(e.message, true); }
-}
-async function unpauseContract() {
-  try { await ownerAction(() => wrapper.unpause()); }
-  catch(e) { status(e.message, true); }
+function humanApproval(x){
+ return approvalMode()==="unlimited"?ethers.MaxUint256:x;
 }
 
-if (window.ethereum) {
-  window.ethereum.on("accountsChanged", async accounts => {
-    account = accounts[0] || null;
-    signer = account ? await provider.getSigner() : null;
-    $("walletLabel").textContent = account ? short(account) : "Wallet not connected";
+/* -------------------------------------------------------
+   WALLET AND NETWORK
+------------------------------------------------------- */
+async function ensureNetwork(){
+ if(!rawProvider)throw Error("Connect a wallet first.");
+ const n=await new ethers.BrowserProvider(rawProvider).getNetwork();
+ if(n.chainId===CHAIN_ID)return;
+ try{
+  await rawProvider.request({method:"wallet_switchEthereumChain",params:[{chainId:CHAIN_HEX}]});
+ }catch(e){
+  if(e.code!==4902)throw e;
+  await rawProvider.request({
+   method:"wallet_addEthereumChain",
+   params:[{
+    chainId:CHAIN_HEX,
+    chainName:"BNB Smart Chain Testnet",
+    nativeCurrency:{name:"tBNB",symbol:"tBNB",decimals:18},
+    rpcUrls:[RPC_URL],
+    blockExplorerUrls:[EXPLORER]
+   }]
   });
-  window.ethereum.on("chainChanged", () => window.location.reload());
+ }
 }
+async function finishWallet(mode){
+ provider=new ethers.BrowserProvider(rawProvider);
+ signer=await provider.getSigner();
+ account=await signer.getAddress();
+ $("wallet").textContent="Connected: "+account;
+ $("walletMode").textContent="Connection: "+mode;
+ await refreshNetwork();
+ if(wrapper)await refreshAll();
+}
+async function connectInjected(){
+ if(!window.ethereum)throw Error("No injected wallet detected.");
+ rawProvider=window.ethereum;
+ await rawProvider.request({method:"eth_requestAccounts"});
+ await ensureNetwork();
+ await finishWallet("Injected Wallet");
+}
+async function connectWalletConnect(){
+ if(WC_PROJECT_ID==="ccef25dcfdb87869f9617936952c987d")
+  throw Error("Add your WalletConnect Cloud Project ID in WC_PROJECT_ID first.");
+ const mod=await import("https://esm.sh/@walletconnect/ethereum-provider@2.23.10");
+ const EthereumProvider=mod.EthereumProvider||mod.default?.EthereumProvider||mod.default;
+ const wc=await EthereumProvider.init({
+  projectId:WC_PROJECT_ID,
+  chains:[97],
+  optionalChains:[97],
+  showQrModal:true,
+  methods:["eth_sendTransaction","personal_sign","eth_sign","eth_signTypedData","eth_signTypedData_v4"],
+  events:["chainChanged","accountsChanged"],
+  metadata:{
+   name:"INRP Partner Wrapper",
+   description:"INRP Partner Wrapper BSC Testnet",
+   url:location.origin,
+   icons:[]
+  },
+  rpcMap:{97:RPC_URL}
+ });
+ await wc.connect();
+ rawProvider=wc;
+ await ensureNetwork();
+ await finishWallet("WalletConnect");
+ wc.on?.("accountsChanged",async a=>{
+  if(!a?.length){disconnect();return;}
+  await finishWallet("WalletConnect");
+ });
+ wc.on?.("chainChanged",()=>location.reload());
+}
+async function switchNetwork(){
+ if(!rawProvider)throw Error("Connect a wallet first.");
+ await ensureNetwork();
+ await finishWallet("Wallet");
+}
+async function refreshNetwork(){
+ if(!provider)return;
+ const n=await provider.getNetwork();
+ $("network").textContent="Chain ID: "+n.chainId+
+  (n.chainId===CHAIN_ID?" â€” BSC Testnet detected.":" â€” Wrong network.");
+}
+async function disconnect(){
+ try{await rawProvider?.disconnect?.();}catch(e){}
+ provider=null;signer=null;rawProvider=null;account=null;
+ wrapper=null;usdt=null;inrp=null;safeSdk=null;safeInfo=null;safeMode=false;
+ $("wallet").textContent="Not connected";
+ $("network").textContent="";
+ $("walletMode").textContent="";
+ $("safeStatus").textContent="";
+ $("mainUI").classList.add("hidden");
+ $("wrapperStats").innerHTML="";
+ $("wrapperStatus").textContent="Wallet disconnected.";
+}
+
+/* -------------------------------------------------------
+   SAFE APP DETECTION
+------------------------------------------------------- */
+async function detectSafe(){
+ try{
+  if(!window.parent||window.parent===window)return false;
+  if(!window.SafeAppsSDK)return false;
+  const sdk=new window.SafeAppsSDK.default();
+  const info=await sdk.safe.getInfo();
+  if(Number(info.chainId)!==97)throw Error("Safe must be connected to BSC Testnet (97).");
+  safeSdk=sdk;safeInfo=info;safeMode=true;
+  provider=new ethers.JsonRpcProvider(RPC_URL);
+  account=info.safeAddress;
+  signer=null;
+  $("wallet").textContent="Safe connected: "+info.safeAddress;
+  $("walletMode").textContent="Connection: Safe Custom App";
+  $("network").textContent="Chain ID: 97 â€” BSC Testnet";
+  $("safeStatus").textContent="Safe App context detected.";
+  return true;
+ }catch(e){
+  $("safeStatus").textContent="Safe App not detected: "+err(e);
+  return false;
+ }
+}
+async function sendTransaction(label,contractMethod,args){
+ requireLoaded();
+ if(safeMode){
+  const data=wrapper.interface.encodeFunctionData(contractMethod,args);
+  const result=await safeSdk.txs.send({txs:[{
+   to:wrapperAddress,value:"0",data
+  }]});
+  setTx(label+" proposed to Safe. Safe transaction: "+result.safeTxHash);
+  return result;
+ }
+ requireWallet();
+ const tx=await wrapper[contractMethod](...args);
+ setTx(label+" submitted: "+tx.hash,tx.hash);
+ await tx.wait();
+ setTx(label+" confirmed: "+tx.hash,tx.hash);
+ await refreshAll();
+ return tx;
+}
+async function sendTokenApproval(tokenAddress,spender,value,label){
+ if(safeMode){
+  const iface=new ethers.Interface(ERC20_ABI);
+  const data=iface.encodeFunctionData("approve",[spender,value]);
+  const r=await safeSdk.txs.send({txs:[{to:tokenAddress,value:"0",data}]});
+  setTx(label+" approval proposed to Safe: "+r.safeTxHash);
+  return;
+ }
+ requireWallet();
+ const token=new ethers.Contract(tokenAddress,ERC20_ABI,signer);
+ const tx=await token.approve(spender,value);
+ setTx(label+" approval submitted: "+tx.hash,tx.hash);
+ await tx.wait();
+ setTx(label+" approval confirmed: "+tx.hash,tx.hash);
+}
+
+/* -------------------------------------------------------
+   LOAD WRAPPER
+------------------------------------------------------- */
+async function loadWrapper(){
+ try{
+  if(!provider){
+   if(!window.ethereum)throw Error("Connect a wallet or open this UI in Safe first.");
+   provider=new ethers.BrowserProvider(window.ethereum);
+  }
+  const n=await provider.getNetwork();
+  if(n.chainId!==CHAIN_ID)throw Error("Wrong network. Select BSC Testnet (97).");
+  const a=addr($("wrapperAddress").value.trim());
+  const code=await provider.getCode(a);
+  if(code==="0x")throw Error("No deployed contract bytecode at this address on BSC Testnet.");
+  wrapperAddress=a;
+  wrapper=new ethers.Contract(a,ABI,signer||provider);
+  [usdtAddress,inrpAddress,adapterAddress]=await Promise.all([
+   wrapper.USDT(),wrapper.INRP(),wrapper.UNDERLYING_ADAPTER()
+  ]);
+  usdt=new ethers.Contract(usdtAddress,ERC20_ABI,signer||provider);
+  inrp=new ethers.Contract(inrpAddress,ERC20_ABI,signer||provider);
+  [usdtDecimals,inrpDecimals]=await Promise.all([usdt.decimals(),inrp.decimals()]);
+  usdtDecimals=Number(usdtDecimals);inrpDecimals=Number(inrpDecimals);
+  $("mainUI").classList.remove("hidden");
+  $("wrapperStatus").textContent="Wrapper loaded: "+a;
+  await refreshAll();
+ }catch(e){$("wrapperStatus").textContent="Load failed: "+err(e);}
+}
+async function refreshAll(){
+ if(!wrapper)return;
+ try{
+  const [owner,paused,fee,maxFee,auto,nonce]=await Promise.all([
+   wrapper.owner(),wrapper.paused(),wrapper.partnerFeeBps(),
+   wrapper.MAX_PARTNER_FEE_BPS(),wrapper.autoFeeTransferEnabled(),
+   account?wrapper.getNonce(account):Promise.resolve("â€”")
+  ]);
+  $("wrapperStats").innerHTML=[
+   ["Wrapper",wrapperAddress],
+   ["Owner",owner],
+   ["Underlying Adapter",adapterAddress],
+   ["USDT",usdtAddress],
+   ["INRP",inrpAddress],
+   ["Partner Fee",fee+" bps ("+(Number(fee)/100).toFixed(2)+"%)"],
+   ["Maximum Fee",maxFee+" bps"],
+   ["Automatic Fee Transfer",String(auto)],
+   ["Paused",String(paused)],
+   ["Connected Account",account||"Not connected"],
+   ["Account Nonce",String(nonce)]
+  ].map(([k,v])=>'<div class="stat"><span>'+k+'</span><b>'+v+'</b></div>').join("");
+  $("maxPartnerFee").value=maxFee.toString();
+  const ownerMode=account&&owner.toLowerCase()===account.toLowerCase();
+  $("toggleAdmin").classList.toggle("hidden",!ownerMode);
+  $("adminNotice").textContent=ownerMode?"Connected account is the wrapper owner.":"Connected account is not the wrapper owner.";
+  $("publicNotice").textContent=paused?"Wrapper is paused. Swaps may not execute.":(ownerMode?"Connected as wrapper owner.":"Public partner swap interface.");
+  $("developerInfo").textContent="Wrapper: "+wrapperAddress+"\nOwner: "+owner+"\nAdapter: "+adapterAddress;
+ }catch(e){$("wrapperStatus").textContent="Refresh error: "+err(e);}
+}
+
+/* -------------------------------------------------------
+   QUOTES
+------------------------------------------------------- */
+async function quoteBuy(){
+ requireLoaded();
+ const x=amount($("buyAmount").value,usdtDecimals);
+ const q=await wrapper.quoteBuyPartnerFee(x);
+ buyQuoteData=q;
+ $("buyQuote").textContent=
+  "Trade amount: "+fmt(q[0],usdtDecimals)+" USDT"+
+  "\nPartner fee: "+fmt(q[1],usdtDecimals)+" USDT"+
+  "\nPartner fee rate: "+q[2].toString()+" bps"+
+  "\nUnderlying adapter: "+adapterAddress;
+ $("buyMaxFee").placeholder="Suggested max: "+fmt(q[1],usdtDecimals);
+}
+async function quoteSell(){
+ requireLoaded();
+ const x=amount($("sellAmount").value,inrpDecimals);
+ const q=await wrapper.quoteSellPartnerFee(x);
+ sellQuoteData=q;
+ $("sellQuote").textContent=
+  "Trade amount: "+fmt(q[0],inrpDecimals)+" INRP"+
+  "\nPartner fee: "+fmt(q[1],inrpDecimals)+" INRP"+
+  "\nPartner fee rate: "+q[2].toString()+" bps"+
+  "\nUnderlying adapter: "+adapterAddress;
+ $("sellMaxFee").placeholder="Suggested max: "+fmt(q[1],inrpDecimals);
+}
+
+/* -------------------------------------------------------
+   SWAP APPROVALS
+------------------------------------------------------- */
+async function approveTrade(isBuy){
+ requireLoaded();
+ if(!account)throw Error("Connect wallet first.");
+ const token=isBuy?usdt:inrp;
+ const tokenAddress=isBuy?usdtAddress:inrpAddress;
+ const d=isBuy?usdtDecimals:inrpDecimals;
+ const x=amount($(isBuy?"buyAmount":"sellAmount").value,d);
+ await sendTokenApproval(tokenAddress,adapterAddress,humanApproval(x),"Underlying adapter trade");
+}
+async function approvePartnerFee(isBuy){
+ requireLoaded();
+ if(!account)throw Error("Connect wallet first.");
+ const d=isBuy?usdtDecimals:inrpDecimals;
+ const max=amount($(isBuy?"buyMaxFee":"sellMaxFee").value,d);
+ const tokenAddress=isBuy?usdtAddress:inrpAddress;
+ await sendTokenApproval(tokenAddress,wrapperAddress,humanApproval(max),"Wrapper partner fee");
+}
+async function prepareTrade(isBuy){
+ requireLoaded();
+ if(!account)throw Error("Connect wallet first.");
+ const amountValue=amount($(isBuy?"buyAmount":"sellAmount").value,isBuy?usdtDecimals:inrpDecimals);
+ const minOut=amount($(isBuy?"buyMin":"sellMin").value,isBuy?inrpDecimals:usdtDecimals);
+ const maxFee=amount($(isBuy?"buyMaxFee":"sellMaxFee").value,isBuy?usdtDecimals:inrpDecimals);
+ const sig=$(isBuy?"buySignature":"sellSignature").value.trim();
+ if(!ethers.isHexString(sig)||sig==="0x")throw Error("Enter a valid authorized signature.");
+ const nonce=await wrapper.getNonce(account);
+ const deadline=Math.floor(Date.now()/1000)+900;
+ const digest=await wrapper.getTradeDigest(account,isBuy,amountValue,minOut,nonce,deadline);
+ const quote=isBuy?await wrapper.quoteBuyPartnerFee(amountValue):await wrapper.quoteSellPartnerFee(amountValue);
+ const expectedFee=quote[1];
+ const data={
+  amountValue,minOut,maxFee,sig,nonce,deadline,digest,expectedFee
+ };
+ $("txStatus").textContent=
+  "Trade digest: "+digest+
+  "\nNonce: "+nonce+
+  "\nDeadline: "+deadline+
+  "\nExpected fee: "+expectedFee+
+  "\nConfirm the signature is valid for this account, trade direction, amount, minimum output, nonce and deadline.";
+ return data;
+}
+async function executeTrade(isBuy){
+ const d=await prepareTrade(isBuy);
+ const method=isBuy?"buyINRP":"sellINRP";
+ const label=isBuy?"Buy INRP":"Sell INRP";
+ const args=[d.amountValue,d.minOut,d.nonce,d.deadline,d.sig,d.expectedFee,d.maxFee];
+ await sendTransaction(label,method,args);
+}
+async function approveAndSwap(isBuy){
+ const tokenAddress=isBuy?usdtAddress:inrpAddress;
+ const d=isBuy?usdtDecimals:inrpDecimals;
+ const amountValue=amount($(isBuy?"buyAmount":"sellAmount").value,d);
+ const maxFee=amount($(isBuy?"buyMaxFee":"sellMaxFee").value,d);
+ const calls=[];
+ const token=new ethers.Contract(tokenAddress,ERC20_ABI,provider);
+ const tradeAllowance=await token.allowance(account,adapterAddress);
+ const feeAllowance=await token.allowance(account,wrapperAddress);
+ const desired=humanApproval(amountValue);
+ const desiredFee=humanApproval(maxFee);
+ const iface=new ethers.Interface(ERC20_ABI);
+ if(tradeAllowance<amountValue)calls.push({to:tokenAddress,value:"0",data:iface.encodeFunctionData("approve",[adapterAddress,desired])});
+ if(feeAllowance<maxFee)calls.push({to:tokenAddress,value:"0",data:iface.encodeFunctionData("approve",[wrapperAddress,desiredFee])});
+ const trade=await prepareTrade(isBuy);
+ const method=isBuy?"buyINRP":"sellINRP";
+ const args=[trade.amountValue,trade.minOut,trade.nonce,trade.deadline,trade.sig,trade.expectedFee,trade.maxFee];
+ calls.push({to:wrapperAddress,value:"0",data:wrapper.interface.encodeFunctionData(method,args)});
+ if(safeMode){
+  const r=await safeSdk.txs.send({txs:calls});
+  setTx("Approval(s) and trade proposed to Safe: "+r.safeTxHash);
+  return;
+ }
+ if(calls.length>1){
+  await sendTokenApproval(tokenAddress,adapterAddress,desired,"Adapter");
+  await sendTokenApproval(tokenAddress,wrapperAddress,desiredFee,"Wrapper fee");
+ }
+ await executeTrade(isBuy);
+}
+
+/* -------------------------------------------------------
+   PARTNER ACCOUNTING
+------------------------------------------------------- */
+async function loadAccounting(){
+ requireLoaded();
+ const partner=addr($("accountingPartner").value||account);
+ const tokenAddress=$("accountingToken").value==="USDT"?usdtAddress:inrpAddress;
+ const decimals=$("accountingToken").value==="USDT"?usdtDecimals:inrpDecimals;
+ const r=await wrapper.getFeeAccounting(partner,tokenAddress);
+ $("accountingResult").textContent=
+  "Partner: "+partner+
+  "\nToken: "+tokenAddress+
+  "\nLifetime collected: "+fmt(r[0],decimals)+
+  "\nAutomatic payments: "+fmt(r[1],decimals)+
+  "\nManual withdrawals: "+fmt(r[2],decimals)+
+  "\nCurrently pending: "+fmt(r[3],decimals)+
+  "\nLifetime paid: "+fmt(r[4],decimals);
+}
+async function withdrawFees(all){
+ requireLoaded();
+ const tokenAddress=$("accountingToken").value==="USDT"?usdtAddress:inrpAddress;
+ const d=$("accountingToken").value==="USDT"?usdtDecimals:inrpDecimals;
+ const partner=addr($("accountingPartner").value||account);
+ if(partner.toLowerCase()!==(account||"").toLowerCase())
+  throw Error("Fee withdrawals are for the connected partner address.");
+ if(all)await sendTransaction("Withdraw all partner fees","withdrawAllFees",[tokenAddress]);
+ else await sendTransaction("Withdraw partner fees","withdrawFees",[tokenAddress,amount($("withdrawAmount").value,d)]);
+ await loadAccounting();
+}
+
+/* -------------------------------------------------------
+   OWNER ADMIN
+------------------------------------------------------- */
+function ownerOnly(){
+ if(!account)throw Error("Connect the owner wallet first.");
+}
+async function ownerTx(label,fn,args){
+ ownerOnly();
+ const owner=await wrapper.owner();
+ if(owner.toLowerCase()!==account.toLowerCase())
+  throw Error("Connected account is not the wrapper owner.");
+ return sendTransaction(label,fn,args);
+}
+async function setFee(){
+ const v=$("newPartnerFee").value;
+ if(v==="")throw Error("Enter fee in basis points.");
+ await ownerTx("Set partner fee","setPartnerFee",[BigInt(v)]);
+}
+async function setAuto(v){await ownerTx("Update automatic fee transfer","setAutoFeeTransfer",[v]);}
+async function pause(){await ownerTx("Pause wrapper","pause",[]);}
+async function unpause(){await ownerTx("Unpause wrapper","unpause",[]);}
+async function blacklist(v){
+ await ownerTx("Blacklist address","blacklistAddress",[addr($("blacklistAddress").value)]);
+}
+async function unblacklist(){
+ await ownerTx("Remove blacklist","unblacklistAddress",[addr($("blacklistAddress").value)]);
+}
+async function rescueToken(){
+ const token=addr($("rescueTokenAddress").value);
+ const recipient=addr($("rescueTokenRecipient").value);
+ const t=new ethers.Contract(token,ERC20_ABI,provider);
+ const d=Number(await t.decimals());
+ const value=amount($("rescueTokenAmount").value,d);
+ await ownerTx("Rescue token","rescueToken",[token,recipient,value]);
+}
+async function rescueBnb(){
+ await ownerTx("Rescue BNB","rescueBNB",[
+  addr($("rescueBnbRecipient").value),
+  ethers.parseEther($("rescueBnbAmount").value)
+ ]);
+}
+async function transferOwnership(){
+ await ownerTx("Transfer ownership","transferOwnership",[addr($("newOwner").value)]);
+}
+async function renounceOwnership(){
+ if(!confirm("WARNING: This permanently removes owner control. Continue?"))return;
+ await ownerTx("Renounce ownership","renounceOwnership",[]);
+}
+
+/* -------------------------------------------------------
+   DEVELOPER TOOLS
+------------------------------------------------------- */
+function buildAbiTools(){
+ const iface=new ethers.Interface(ABI);
+ const reads=[],writes=[];
+ for(const f of iface.fragments){
+  if(f.type!=="function")continue;
+  (f.stateMutability==="view"||f.stateMutability==="pure"?reads:writes).push(f);
+ }
+ const makeOptions=arr=>arr.map(f=>'<option value="'+f.name+'">'+f.format("sighash")+'</option>').join("");
+ $("readFunction").innerHTML=makeOptions(reads);
+ $("writeFunction").innerHTML=makeOptions(writes);
+ $("readFunction").onchange=()=>renderArgs("read");
+ $("writeFunction").onchange=()=>renderArgs("write");
+ renderArgs("read");renderArgs("write");
+}
+function renderArgs(which){
+ const name=$(which==="read"?"readFunction":"writeFunction").value;
+ const f=new ethers.Interface(ABI).getFunction(name);
+ const target=$(which==="read"?"readArgs":"writeArgs");
+ target.innerHTML="";
+ f.inputs.forEach((p,i)=>{
+  const label=document.createElement("label");
+  label.textContent=p.name||("Argument "+(i+1))+" ("+p.type+")";
+  const input=document.createElement("input");
+  input.id=which+"Arg"+i;
+  input.placeholder=p.type==="address"?"0x...":p.type==="bytes"?"0x...":p.type;
+  target.append(label,input);
+ });
+}
+function parseAbiArg(p,v){
+ if(p.type==="address")return addr(v);
+ if(p.type==="bool")return v==="true"||v==="1";
+ if(p.type==="bytes"||p.type.startsWith("bytes"))return v;
+ if(p.type.startsWith("uint")||p.type.startsWith("int"))return BigInt(v);
+ return v;
+}
+async function runAbi(which){
+ requireLoaded();
+ const name=$(which==="read"?"readFunction":"writeFunction").value;
+ const iface=new ethers.Interface(ABI);
+ const f=iface.getFunction(name);
+ const args=f.inputs.map((p,i)=>parseAbiArg(p,$(which+"Arg"+i).value));
+ if(which==="read"){
+  const r=await wrapper[name](...args);
+  $( "readResult").textContent=JSON.stringify(
+   Array.isArray(r)?r.map(x=>x?.toString?.()??x):r?.toString?.()??r,null,2
+  );
+ }else{
+  const owner=await wrapper.owner();
+  if(!account||owner.toLowerCase()!==account.toLowerCase())
+   throw Error("Write functions require the connected wrapper owner.");
+  await sendTransaction("Developer ABI: "+name,name,args);
+  $("writeResult").textContent="Transaction submitted. See transaction status above.";
+ }
+}
+async function diagnostics(){
+ requireLoaded();
+ const results={};
+ for(const name of ["owner","paused","USDT","INRP","UNDERLYING_ADAPTER","partnerFeeBps","MAX_PARTNER_FEE_BPS","DEFAULT_PARTNER_FEE_BPS","autoFeeTransferEnabled","FEE_DENOMINATOR"]){
+  try{results[name]=String(await wrapper[name]());}
+  catch(e){results[name]="ERROR: "+err(e);}
+ }
+ $("diagnosticsResult").textContent=JSON.stringify(results,null,2);
+}
+async function loadPartnerStats(){
+ const p=addr($("statsPartner").value);
+ const r=await wrapper.getPartnerStats(p);
+ $("partnerStatsResult").textContent=
+  "Partner: "+p+
+  "\nBuy volume (USDT): "+fmt(r[0],usdtDecimals)+
+  "\nSell volume (INRP): "+fmt(r[1],inrpDecimals)+
+  "\nBuy trades: "+r[2]+
+  "\nSell trades: "+r[3];
+}
+async function loadGlobalStats(){
+ const r=await wrapper.getGlobalStats();
+ const labels=["Buy volume USDT","Sell volume INRP","Buy trades","Sell trades","Fees collected USDT","Fees collected INRP","Fees paid USDT","Fees paid INRP","Pending USDT","Pending INRP"];
+ const dec=[usdtDecimals,inrpDecimals,0,0,usdtDecimals,inrpDecimals,usdtDecimals,inrpDecimals,usdtDecimals,inrpDecimals];
+ $("globalStatsResult").textContent=labels.map((x,i)=>x+": "+(dec[i]?fmt(r[i],dec[i]):r[i].toString())).join("\n");
+}
+
+/* -------------------------------------------------------
+   EVENT WIRING
+------------------------------------------------------- */
+function on(id,fn){
+ $(id).addEventListener("click",()=>Promise.resolve().then(fn).catch(e=>setTx("Error: "+err(e))));
+}
+on("connectInjected",connectInjected);
+on("connectWC",connectWalletConnect);
+on("switchBsc",switchNetwork);
+on("disconnect",disconnect);
+on("loadWrapper",loadWrapper);
+on("refresh",refreshAll);
+
+on("quoteBuy",quoteBuy);
+on("quoteSell",quoteSell);
+on("approveBuy",()=>approveTrade(true));
+on("approveSell",()=>approveTrade(false));
+on("approveBuyFee",()=>approvePartnerFee(true));
+on("approveSellFee",()=>approvePartnerFee(false));
+on("buy",()=>executeTrade(true));
+on("sell",()=>executeTrade(false));
+on("approveBuyAndSwap",()=>approveAndSwap(true));
+on("approveSellAndSwap",()=>approveAndSwap(false));
+
+on("loadAccounting",loadAccounting);
+on("withdrawFees",()=>withdrawFees(false));
+on("withdrawAllFees",()=>withdrawFees(true));
+
+on("toggleAdmin",()=>{
+ $("adminPanel").classList.toggle("hidden");
+ $("toggleAdmin").textContent=$("adminPanel").classList.contains("hidden")?"Show Owner / Admin Panel":"Hide Owner / Admin Panel";
+});
+on("setPartnerFee",setFee);
+on("enableAuto",()=>setAuto(true));
+on("disableAuto",()=>setAuto(false));
+on("pause",pause);
+on("unpause",unpause);
+on("blacklist",blacklist);
+on("unblacklist",unblacklist);
+on("rescueToken",rescueToken);
+on("rescueBnb",rescueBnb);
+on("transferOwnership",transferOwnership);
+on("renounceOwnership",renounceOwnership);
+
+on("toggleDeveloper",()=>{
+ $("developerPanel").classList.toggle("hidden");
+ $("toggleDeveloper").textContent=$("developerPanel").classList.contains("hidden")?"Show Developer Mode":"Hide Developer Mode";
+});
+on("diagnostics",diagnostics);
+on("loadPartnerStats",loadPartnerStats);
+on("loadGlobalStats",loadGlobalStats);
+on("runRead",()=>runAbi("read"));
+on("runWrite",()=>runAbi("write"));
+
+buildAbiTools();
+
+if(window.ethereum){
+ window.ethereum.on?.("accountsChanged",async a=>{
+  if(!a?.length){disconnect();return;}
+  rawProvider=window.ethereum;
+  await finishWallet("Injected Wallet");
+ });
+ window.ethereum.on?.("chainChanged",()=>location.reload());
+}
+window.addEventListener("load",async()=>{
+ await detectSafe();
+});
 </script>
 </body>
 </html>
+
+

@@ -403,7 +403,7 @@ async function connectInjected(){
  await finishWallet("Injected Wallet");
 }
 async function connectWalletConnect(){
- if(WC_PROJECT_ID==="ccef25dcfdb87869f9617936952c987d")
+ if(WC_PROJECT_ID==="YOUR_WALLETCONNECT_PROJECT_ID")
   throw Error("Add your WalletConnect Cloud Project ID in WC_PROJECT_ID first.");
  const mod=await import("https://esm.sh/@walletconnect/ethereum-provider@2.23.10");
  const EthereumProvider=mod.EthereumProvider||mod.default?.EthereumProvider||mod.default;

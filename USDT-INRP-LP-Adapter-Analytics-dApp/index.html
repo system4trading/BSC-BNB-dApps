@@ -1,334 +1,115 @@
-	<!doctype html>
-	<html lang="en">
-	<head>
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width,initial-scale=1">
-	<title>Fixed Rate USDT / INRP ó Adapter Analytics</title>
-	<style>
-	body{font-family:Arial,sans-serif;max-width:1120px;margin:auto;padding:20px;background:#f5f6f8;color:#18202a}
-	.card{background:#fff;border:1px solid #ddd;border-radius:10px;padding:18px;margin:14px 0}
-	h1,h2,h3{margin-top:0}.row{display:flex;gap:10px;flex-wrap:wrap}.field{flex:1;min-width:190px}
-	input,select,button{width:100%;box-sizing:border-box;padding:10px;margin:5px 0;border:1px solid #bbb;border-radius:6px}
-	button{cursor:pointer;font-weight:600}.primary{background:#222;color:#fff}.danger{background:#7a1f1f;color:#fff}
-	.small{font-size:13px;color:#59636e}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
-	.stat{border:1px solid #ddd;border-radius:8px;padding:12px}.stat b{display:block;font-size:17px;margin-top:4px;word-break:break-word}
-	.hidden{display:none!important}.ok{color:#126b2e}.warn{color:#8a5a00}.err{color:#9b1c1c}
-	hr{border:0;border-top:1px solid #eee;margin:16px 0}code{background:#f0f1f2;padding:2px 4px;border-radius:4px}
-	details summary{cursor:pointer;font-weight:700}label{display:block;margin-top:5px}.notice{padding:10px;border-radius:7px;background:#f1f2f4;margin:8px 0}
-	.table-wrap{overflow:auto}.table-wrap table{width:100%;border-collapse:collapse;font-size:13px}.table-wrap th,.table-wrap td{padding:8px;border-bottom:1px solid #eee;text-align:left;white-space:nowrap}.table-wrap th{background:#fafafa}
-	.chartbox{border:1px solid #ddd;border-radius:8px;padding:12px;overflow:auto}.bars{display:flex;align-items:flex-end;gap:8px;height:210px;min-width:560px;padding:10px 4px}.barcol{flex:1;min-width:34px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.bar{width:100%;background:#222;border-radius:4px 4px 0 0;min-height:2px}.barlabel{font-size:10px;color:#59636e;margin-top:5px;overflow:hidden;text-overflow:ellipsis;max-width:55px}.barvalue{font-size:10px;margin-bottom:3px}.muted{color:#59636e}.pill{display:inline-block;padding:3px 7px;border-radius:12px;background:#f0f1f2;font-size:12px}.progress{height:8px;background:#eee;border-radius:8px;overflow:hidden}.progress>div{height:100%;background:#222;width:0}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button,.actions a{width:auto}.linkbtn{display:inline-block;text-decoration:none;border:1px solid #bbb;border-radius:6px;padding:10px 12px;color:#18202a;background:#fff;font-weight:600}.mini{font-size:12px}.good{color:#126b2e}.bad{color:#9b1c1c}.warnbox{background:#fff7df;border:1px solid #ead59b}.dangerbox{background:#fff0f0;border:1px solid #e2bcbc}
-	</style>
-	</head>
-	<body>
-	<h1>Fixed Rate USDT / INRP ó Adapter Analytics</h1>
-	<div class="card">
-	<div class="notice"><b>Read-only analytics.</b> No wallet connection or transaction signing is required. This dashboard reads BNB Smart Chain directly and analyzes the adapter's own events and balances. It does not infer users from the underlying V21 pool's <code>Buy</code>/<code>Sell</code> events.</div>
-	<div class="row">
-	<div class="field"><label>Adapter contract address</label><input id="adapterAddress" placeholder="0x..."></div>
-	<div class="field"><label>RPC URL</label><input id="rpcUrl" value="https://bsc-dataseed.binance.org"></div>
-	</div>
-	<div class="row">
-	<div class="field"><label>From block</label><input id="fromBlock" type="number" min="0" placeholder="Deployment block"></div>
-	<div class="field"><label>To block</label><input id="toBlock" type="number" min="0" placeholder="Latest"></div>
-	<div class="field"><label>Chunk size</label><input id="chunkSize" type="number" min="100" max="50000" value="5000"></div>
-	</div>
-	<div class="row">
-	<div class="field"><button id="loadAdapter" class="primary">Load Adapter</button></div>
-	<div class="field"><button id="scanHistory">Scan Adapter History</button></div>
-	<div class="field"><button id="refreshState">Refresh Current State</button></div>
-	<div class="field"><button id="clearCache">Clear Local Analytics Cache</button></div>
-	</div>
-	<div id="status" class="small">Ready.</div>
-	<div class="progress"><div id="progressBar"></div></div>
-	</div>
-	
-	<div class="card"><h2>Adapter Configuration & Current State</h2>
-	<div class="actions">
-	<button id="copyAdapter">Copy Adapter Address</button>
-	<a id="adapterScan" class="linkbtn" href="#" target="_blank" rel="noopener">Open Adapter in BscScan</a>
-	<button id="copyPool">Copy V21 Pool Address</button>
-	<a id="poolScan" class="linkbtn" href="#" target="_blank" rel="noopener">Open V21 Pool in BscScan</a>
-	</div>
-	<div id="overview" class="grid"></div>
-	<div id="stateNotice" class="notice small">Load an adapter to populate current state.</div>
-	</div>
-	
-	<div class="card"><h2>Adapter Activity</h2>
-	<div class="grid">
-	<div class="stat">Swap transactions<b id="swapCount">ó</b></div>
-	<div class="stat">Unique users<b id="uniqueUsers">ó</b></div>
-	<div class="stat">USDT through adapter<b id="usdtVolume">ó</b></div>
-	<div class="stat">INRP through adapter<b id="inrpVolume">ó</b></div>
-	<div class="stat">Recovery events<b id="recoveryCount">ó</b></div>
-	<div class="stat">Admin events<b id="adminCount">ó</b></div>
-	</div>
-	</div>
-	
-	<div class="card"><h2>Adapter Security / Operational Status</h2>
-	<div id="securityOverview" class="grid"></div>
-	</div>
-	
-	<div class="card"><h2>Admin Behavior Analysis</h2>
-	<div id="adminStats" class="grid"></div>
-	<div class="row">
-	<div class="field"><label>Admin actor filter (optional)</label><input id="adminActorFilter" placeholder="0x..."></div>
-	<div class="field"><button id="analyzeAdminActor">Analyze Admin Actor</button></div>
-	<div class="field"><button id="exportAdmin">Export Admin CSV</button></div>
-	</div>
-	<div id="adminActorStats" class="grid"></div>
-	<div class="table-wrap"><table><thead><tr><th>Actor</th><th>Admin events</th><th>Ownership</th><th>Pause</th><th>Blacklist</th><th>Recovery</th></tr></thead><tbody id="adminActorTable"></tbody></table></div>
-	</div>
-	
-	<div class="card"><h2>Admin Activity Timeline</h2>
-	<div class="table-wrap"><table><thead><tr><th>Block</th><th>Time</th><th>Event</th><th>Actor</th><th>Details</th><th>Transaction</th></tr></thead><tbody id="adminTable"></tbody></table></div>
-	</div>
-	
-	<div class="card"><h2>Historical Analytics Summary</h2>
-	<div id="historySummary" class="grid"></div>
-	<div class="small">Historical metrics use only the currently indexed block range and adapter events. They do not infer activity from the V21 pool.</div>
-	</div>
-	
-	<div class="card"><h2>Volume & Swap Analytics</h2>
-	<div class="row"><div class="field"><label>Period</label><select id="period"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></div><div class="field"><label>Metric</label><select id="metric"><option value="usdt">USDT volume</option><option value="tx">Transaction count</option><option value="users">Unique users</option></select></div></div>
-	<div id="volumeChart" class="chartbox">ó</div>
-	</div>
-	
-	<div class="card"><h2>Buy / Sell Summary</h2><div id="swapSummary" class="grid"></div>
-	<br><div class="table-wrap"><table><thead><tr><th>Type</th><th>Transactions</th><th>Users</th><th>Input</th><th>Output</th></tr></thead><tbody id="swapSummaryTable"></tbody></table></div>
-	</div>
-	
-	<div class="card"><h2>User Analytics</h2>
-	<div class="row"><div class="field"><label>Wallet address (optional)</label><input id="walletFilter" placeholder="0x..."></div><div class="field"><button id="analyzeWallet">Analyze Wallet</button></div><div class="field"><button id="exportUsers">Export Users CSV</button></div></div>
-	<div id="walletStats" class="grid"></div>
-	<div class="table-wrap" id="usersTableWrap" style="display:none"><table><thead><tr><th>Rank</th><th>Wallet</th><th>Buys</th><th>Sells</th><th>Transactions</th><th>USDT Buy Volume</th><th>USDT Sell Output</th><th>First Activity</th><th>Last Activity</th></tr></thead><tbody id="usersTable"></tbody></table></div>
-	</div>
-	
-	<div class="card"><h2>Adapter Event Explorer</h2>
-	<div class="row"><div class="field"><label>Event</label><select id="eventName"><option value="Swap">Swap</option><option value="OwnershipTransferred">OwnershipTransferred</option><option value="Paused">Paused</option><option value="Unpaused">Unpaused</option><option value="Blacklisted">Blacklisted</option><option value="Unblacklisted">Unblacklisted</option><option value="TokenRescued">TokenRescued</option><option value="BNBRescued">BNBRescued</option></select></div><div class="field"><button id="scanEvent">Read Event Logs</button></div><div class="field"><button id="exportEvents">Export Event CSV</button></div></div>
-	<div id="eventStatus" class="small">ó</div>
-	<div class="table-wrap"><table><thead><tr><th>Block</th><th>Time</th><th>Event</th><th>Details</th><th>Transaction</th></tr></thead><tbody id="eventTable"></tbody></table></div>
-	</div>
-	
-	<div class="card"><h2>Linked V21 Pool Status</h2>
-	<div class="notice">The adapter is hard-wired to the V21 pool. This section reads the linked pool for operational context only; pool events are not mixed into adapter user analytics.</div>
-	<div class="actions"><a id="poolScan2" class="linkbtn" href="#" target="_blank" rel="noopener">Open V21 Pool in BscScan</a></div>
-	<div id="poolOverview" class="grid"></div>
-	</div>
-	
-	<div class="card"><h2>Historical Index / Cache & Exports</h2>
-	<div id="cacheStatus" class="small">No local adapter analytics cache loaded.</div>
-	<div class="actions">
-	<button id="exportAll">Export All Adapter Events CSV</button>
-	<button id="exportSwaps">Export Swap History CSV</button>
-	<button id="exportUsers2">Export User Analytics CSV</button>
-	<button id="exportAdmin2">Export Admin History CSV</button>
-	</div>
-	<div class="small">One row represents an adapter event. Historical totals are aggregated from the adapter's <code>Swap</code> events. Current balances and linked V21 state are read from contract storage. The adapter address remains user-supplied and is not hardcoded.</div>
-	</div>
-	
-	<script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script>
-	<script>
-	const CHAIN_ID=56n;
-	const V21_POOL="0xdfC44A2cb792BA070DF2D75a650C49147EfF6e66";
-	const USDT="0x55d398326f99059fF775485246999027B3197955";
-	const INRP="0x33987b4B97033DfB0943c4eE67C4aaDD146eE580";
-	const CACHE_KEY="fixed_rate_adapter_analytics_v1";
-	const ABI=[
-	"function owner() view returns(address)","function paused() view returns(bool)","function blacklisted(address) view returns(bool)",
-	"function quoteBuy(uint256) view returns(uint256,uint256)","function quoteSell(uint256) view returns(uint256,uint256,uint256)",
-	"event Swap(address indexed user,bool indexed isBuy,uint256 inputAmount,uint256 outputAmount,uint256 minOutput)",
-	"event OwnershipTransferred(address indexed previousOwner,address indexed newOwner)",
-	"event Paused(address indexed account)","event Unpaused(address indexed account)",
-	"event Blacklisted(address indexed account)","event Unblacklisted(address indexed account)",
-	"event TokenRescued(address indexed token,uint256 amount,address indexed to)",
-	"event BNBRescued(uint256 amount,address indexed to)"
-	];
-	const POOL_ABI=[
-	"function owner() view returns(address)","function paused() view returns(bool)","function rateWAD() view returns(uint256)","function buyFeeBps() view returns(uint256)","function sellFeeBps() view returns(uint256)","function feesAccruedUSDT() view returns(uint256)","function availableUSDT() view returns(uint256)","function availableINRP() view returns(uint256)","function getBalances() view returns(uint256,uint256,uint256,uint256)"
-	];
-	const ERC20=["function balanceOf(address) view returns(uint256)","function decimals() view returns(uint8)"];
-	let provider=null,adapter=null,rows=[],latestBlock=0;
-	const $=id=>document.getElementById(id);
-	const short=a=>a?a.slice(0,6)+"..."+a.slice(-4):"";
-	const esc=s=>String(s??"").replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
-	const txurl=h=>"https://bscscan.com/tx/"+h;
-	const addr=v=>ethers.getAddress(v);
-	const fmt=(v,d)=>Number(ethers.formatUnits(v,d)).toLocaleString(undefined,{maximumFractionDigits:6});
-	function err(e){return e?.shortMessage||e?.reason||e?.message||String(e)}
-	function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({adapter:$('adapterAddress').value.trim(),from:$('fromBlock').value,to:$('toBlock').value,rows}));}catch(e){}}
-	function loadCache(){try{const x=JSON.parse(localStorage.getItem(CACHE_KEY)||"null");if(x?.rows?.length){rows=x.rows;renderAll();$('cacheStatus').textContent="Loaded "+rows.length+" cached adapter event(s). Scan history to refresh.";}}catch(e){}}
-	function setStatus(s){$('status').textContent=s}
-	function setProgress(v){$('progressBar').style.width=Math.max(0,Math.min(100,v))+"%"}
-	async function connectProvider(){
-	const url=$('rpcUrl').value.trim(); if(!url)throw Error("Enter an RPC URL.");
-	provider=new ethers.JsonRpcProvider(url,{name:'bnb-smart-chain',chainId:56});
-	const n=await provider.getNetwork(); if(n.chainId!==CHAIN_ID)throw Error("RPC is not BNB Smart Chain (chain ID 56).");
-	latestBlock=await provider.getBlockNumber();
-	}
-	function getAdapter(){const a=addr($('adapterAddress').value.trim());return new ethers.Contract(a,ABI,provider)}
-	async function loadAdapter(){
-	try{await connectProvider();adapter=getAdapter();
-	const latest=await provider.getBlockNumber(); $('toBlock').placeholder=String(latest); if(!$('toBlock').value)$('toBlock').value=latest;
-	if(!$('fromBlock').value){$('fromBlock').value=Math.max(0,latest-100000);}
-	await refreshState(); setStatus("Adapter loaded. Ready for history scan.");
-	}catch(e){setStatus("Error: "+err(e));}
-	}
-	async function refreshState(){
-	if(!adapter)await loadAdapter();
-	try{
-	const [owner,paused]=await Promise.all([adapter.owner(),adapter.paused()]);
-	const a=addr($('adapterAddress').value.trim());
-	const [bu,bi,bnb]=await Promise.all([
-	new ethers.Contract(USDT,ERC20,provider).balanceOf(a),
-	new ethers.Contract(INRP,ERC20,provider).balanceOf(a),
-	provider.getBalance(a)
-	]);
-	$('overview').innerHTML=[
-	["Adapter",a],["Owner",owner],["Status",paused?"PAUSED":"ACTIVE"],["V21 Pool",V21_POOL],["Adapter USDT balance",fmt(bu,18)+" USDT"],["Adapter INRP balance",fmt(bi,6)+" INRP"],["Adapter BNB balance",fmt(bnb,18)+" BNB"],["Network","BNB Smart Chain (56)"]
-	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
-	await refreshPool();
-	}catch(e){setStatus("State error: "+err(e));}
-	}
-	async function refreshPool(){
-	try{
-	const p=new ethers.Contract(V21_POOL,POOL_ABI,provider);
-	const [owner,paused,rate,buyFee,sellFee,fees,availU,availI,bal]=await Promise.all([p.owner(),p.paused(),p.rateWAD(),p.buyFeeBps(),p.sellFeeBps(),p.feesAccruedUSDT(),p.availableUSDT(),p.availableINRP(),p.getBalances()]);
-	$('poolOverview').innerHTML=[
-	["Pool owner",owner],["Pool status",paused?"PAUSED":"ACTIVE"],["Fixed rate","1 USDT = "+ethers.formatUnits(rate,18)+" INRP"],["Buy fee",(Number(buyFee)/100).toFixed(2)+"%"],["Sell fee",(Number(sellFee)/100).toFixed(2)+"%"],["USDT balance",fmt(bal[0],18)+" USDT"],["INRP balance",fmt(bal[1],6)+" INRP"],["Accrued fees",fmt(fees,18)+" USDT"],["Available USDT",fmt(availU,18)+" USDT"],["Available INRP",fmt(availI,6)+" INRP"]
-	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
-	}catch(e){$('poolOverview').innerHTML='<div class="notice err">Could not read linked V21 pool: '+esc(err(e))+'</div>'}
-	}
-	async function scanHistory(){
-	try{
-	if(!adapter)await loadAdapter();
-	const latest=await provider.getBlockNumber(); const from=Math.max(0,Number($('fromBlock').value||0)); const to=Math.min(latest,Number($('toBlock').value||latest)); const chunk=Math.max(100,Math.min(50000,Number($('chunkSize').value||5000)));
-	if(from>to)throw Error("From block must be <= To block.");
-	rows=[]; setProgress(0);
-	const total=to-from+1; let done=0;
-	for(let b=from;b<=to;b+=chunk){
-	const e=Math.min(to,b+chunk-1); const logs=await adapter.queryFilter(adapter.filters.Swap(),b,e);
-	const adminLogs=[];
-	for(const name of ['OwnershipTransferred','Paused','Unpaused','Blacklisted','Unblacklisted','TokenRescued','BNBRescued']){
-	const ls=await adapter.queryFilter(adapter.filters[name](),b,e); adminLogs.push(...ls.map(x=>({log:x,name})));
-	}
-	const swapRows=logs.map(x=>({kind:'swap',name:'Swap',blockNumber:x.blockNumber,transactionHash:x.transactionHash,args:x.args,time:null,actor:null}));
-	const ar=adminLogs.map(o=>({kind:'admin',name:o.name,blockNumber:o.log.blockNumber,transactionHash:o.log.transactionHash,args:o.log.args,time:null,actor:null}));
-	rows.push(...swapRows,...ar); done=e-from+1; setProgress(done/total*100); setStatus("Scanning blocks "+b.toLocaleString()+" ? "+e.toLocaleString()+"Ö");
-	}
-	const unique=[...new Set(rows.map(x=>x.transactionHash))];
-	const cacheTimes=new Map(), txActors=new Map();
-	for(const h of unique){
-	try{
-	const r=rows.find(x=>x.transactionHash===h);
-	const bl=await provider.getBlock(r?.blockNumber);
-	if(bl)cacheTimes.set(h,new Date(Number(bl.timestamp)*1000).toISOString());
-	if(r?.kind==='admin'){
-	const tx=await provider.getTransaction(h);
-	if(tx)txActors.set(h,tx.from);
-	}
-	}catch(e){}
-	}
-	rows.forEach(x=>{x.time=cacheTimes.get(x.transactionHash)||"";x.actor=txActors.get(x.transactionHash)||null;}); rows.sort((a,b)=>a.blockNumber-b.blockNumber);
-	saveCache(); renderAll(); $('cacheStatus').textContent="Indexed "+rows.length+" adapter event(s) from blocks "+from.toLocaleString()+" ? "+to.toLocaleString()+"."; setStatus("Complete. Found "+rows.length+" adapter event(s)."); setProgress(100);
-	}catch(e){setStatus("Scan error: "+err(e));}
-	}
-	function swapRows(){return rows.filter(x=>x.kind==='swap')}
-	function usersMap(){const m={};for(const x of swapRows()){const a=x.args;const u=String(a.user??a[0]).toLowerCase();if(!m[u])m[u]={wallet:u,buys:0,sells:0,tx:0,buyInput:0,sellOutput:0,inrpBought:0,inrpSold:0,first:x.time||"",last:x.time||""};m[u].tx++;if(Boolean(a.isBuy??a[1])){m[u].buys++;m[u].buyInput+=Number(ethers.formatUnits(a.inputAmount??a[2],18));m[u].inrpBought+=Number(ethers.formatUnits(a.outputAmount??a[3],6));}else{m[u].sells++;m[u].sellOutput+=Number(ethers.formatUnits(a.outputAmount??a[3],18));m[u].inrpSold+=Number(ethers.formatUnits(a.inputAmount??a[2],6));}if(!m[u].first||x.time<m[u].first)m[u].first=x.time;if(!m[u].last||x.time>m[u].last)m[u].last=x.time;}return m}
-	function periodKey(t,period){const d=new Date(t);if(period==='month')return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,'0');if(period==='week'){const x=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()));const day=x.getUTCDay()||7;x.setUTCDate(x.getUTCDate()-day+1);return x.toISOString().slice(0,10);}return d.toISOString().slice(0,10)}
-	function buildBuckets(period,metric){const m={};for(const x of swapRows()){const k=periodKey(x.time||new Date(0).toISOString(),period);if(!m[k])m[k]={v:0,tx:0,u:new Set()};m[k].tx++;const a=x.args;m[k].u.add(String(a.user??a[0]).toLowerCase());m[k].v+=Boolean(a.isBuy??a[1])?Number(ethers.formatUnits(a.inputAmount??a[2],18)):Number(ethers.formatUnits(a.outputAmount??a[3],18));}return Object.entries(m).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>({k,v:metric==='usdt'?v:metric==='tx'?v.tx:v.u.size}));}
-	function renderChart(){const p=$('period').value,m=$('metric').value,b=buildBuckets(p,m);if(!b.length){$('volumeChart').textContent='No swap data in the indexed history.';return;}const max=Math.max(...b.map(x=>x.v),1);$('volumeChart').innerHTML='<div class="bars">'+b.slice(-40).map(x=>'<div class="barcol"><div class="barvalue">'+x.v.toLocaleString(undefined,{maximumFractionDigits:2})+'</div><div class="bar" style="height:'+Math.max(2,x.v/max*170)+'px"></div><div class="barlabel">'+esc(x.k)+'</div></div>').join('')+'</div>'}
-	function renderSummary(){const s=swapRows();const buys=s.filter(x=>Boolean(x.args.isBuy??x.args[1])),sells=s.filter(x=>!Boolean(x.args.isBuy??x.args[1]));let bi=0,bo=0,si=0,so=0;buys.forEach(x=>{bi+=Number(ethers.formatUnits(x.args.inputAmount??x.args[2],18));bo+=Number(ethers.formatUnits(x.args.outputAmount??x.args[3],6));});sells.forEach(x=>{si+=Number(ethers.formatUnits(x.args.inputAmount??x.args[2],6));so+=Number(ethers.formatUnits(x.args.outputAmount??x.args[3],18));});$('swapSummary').innerHTML=[["Buy transactions",buys.length],["Buy USDT input",bi.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT"],["Buy INRP output",bo.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP"],["Sell transactions",sells.length],["Sell INRP input",si.toLocaleString(undefined,{maximumFractionDigits:6})+" INRP"],["Sell USDT output",so.toLocaleString(undefined,{maximumFractionDigits:6})+" USDT"]].map(x=>'<div class="stat">'+x[0]+'<b>'+x[1]+'</b></div>').join('');$('swapSummaryTable').innerHTML='<tr><td>Buy</td><td>'+buys.length+'</td><td>'+new Set(buys.map(x=>String(x.args.user??x.args[0]).toLowerCase())).size+'</td><td>'+bi.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT</td><td>'+bo.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP</td></tr><tr><td>Sell</td><td>'+sells.length+'</td><td>'+new Set(sells.map(x=>String(x.args.user??x.args[0]).toLowerCase())).size+'</td><td>'+si.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP</td><td>'+so.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT</td></tr>'}
-	function renderUsers(){const m=usersMap(),arr=Object.values(m).sort((a,b)=>b.tx-a.tx);$('usersTable').innerHTML=arr.map((x,i)=>'<tr><td>'+(i+1)+'</td><td><code>'+esc(x.wallet)+'</code></td><td>'+x.buys+'</td><td>'+x.sells+'</td><td>'+x.tx+'</td><td>'+x.buyInput.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT</td><td>'+x.sellOutput.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT</td><td>'+esc(x.first?new Date(x.first).toLocaleString():"ó")+'</td><td>'+esc(x.last?new Date(x.last).toLocaleString():"ó")+'</td></tr>').join('');$('usersTableWrap').style.display=arr.length?'block':'none';}
-	function renderOverviewStats(){const s=swapRows(),us=[...new Set(s.map(x=>String(x.args.user??x.args[0]).toLowerCase()))];let uv=0,iv=0;s.forEach(x=>{const a=x.args;if(Boolean(a.isBuy??a[1])){uv+=Number(ethers.formatUnits(a.inputAmount??a[2],18));iv+=Number(ethers.formatUnits(a.outputAmount??a[3],6));}else{iv+=Number(ethers.formatUnits(a.inputAmount??a[2],6));uv+=Number(ethers.formatUnits(a.outputAmount??a[3],18));}});$('swapCount').textContent=s.length;$('uniqueUsers').textContent=us.length;$('usdtVolume').textContent=uv.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT';$('inrpVolume').textContent=iv.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP';$('recoveryCount').textContent=rows.filter(x=>['TokenRescued','BNBRescued'].includes(x.name)).length;$('adminCount').textContent=rows.filter(x=>x.kind==='admin').length}
-	function details(x){const a=x.args;if(x.name==='Swap')return (Boolean(a.isBuy??a[1])?'BUY':'SELL')+' | user '+(a.user??a[0])+' | input '+(Boolean(a.isBuy??a[1])?fmt(a.inputAmount??a[2],18)+' USDT':fmt(a.inputAmount??a[2],6)+' INRP')+' | output '+(Boolean(a.isBuy??a[1])?fmt(a.outputAmount??a[3],6)+' INRP':fmt(a.outputAmount??a[3],18)+' USDT');if(x.name==='OwnershipTransferred')return 'previous '+a.previousOwner+' ? new '+a.newOwner;if(x.name==='Paused'||x.name==='Unpaused'||x.name==='Blacklisted'||x.name==='Unblacklisted')return 'account '+a.account;if(x.name==='TokenRescued')return 'token '+a.token+' | raw amount '+a.amount+' | to '+a.to;if(x.name==='BNBRescued')return 'amount '+ethers.formatEther(a.amount)+' BNB | to '+a.to;return JSON.stringify(a)}
-	function adminRows(){return rows.filter(x=>x.kind==='admin')}
-	function adminCounts(){const a=adminRows();return {total:a.length,ownership:a.filter(x=>x.name==='OwnershipTransferred').length,pauses:a.filter(x=>x.name==='Paused').length,unpauses:a.filter(x=>x.name==='Unpaused').length,blacklists:a.filter(x=>x.name==='Blacklisted').length,unblacklists:a.filter(x=>x.name==='Unblacklisted').length,tokenRecovery:a.filter(x=>x.name==='TokenRescued').length,bnbRecovery:a.filter(x=>x.name==='BNBRescued').length}}
-	function renderAdminAnalysis(){
-	const c=adminCounts();
-	$('adminStats').innerHTML=[
-	["Total admin events",c.total],["Ownership transfers",c.ownership],["Pauses",c.pauses],["Unpauses",c.unpauses],
-	["Blacklist additions",c.blacklists],["Blacklist removals",c.unblacklists],["Token recoveries",c.tokenRecovery],["BNB recoveries",c.bnbRecovery]
-	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+x[1]+'</b></div>').join('');
-	const m={};
-	for(const x of adminRows()){const actor=(x.actor||'unknown').toLowerCase();if(!m[actor])m[actor]={actor,events:0,ownership:0,pause:0,blacklist:0,recovery:0};m[actor].events++;if(x.name==='OwnershipTransferred')m[actor].ownership++;if(['Paused','Unpaused'].includes(x.name))m[actor].pause++;if(['Blacklisted','Unblacklisted'].includes(x.name))m[actor].blacklist++;if(['TokenRescued','BNBRescued'].includes(x.name))m[actor].recovery++;}
-	const arr=Object.values(m).sort((a,b)=>b.events-a.events);
-	$('adminActorTable').innerHTML=arr.map(x=>'<tr><td><code>'+esc(x.actor)+'</code></td><td>'+x.events+'</td><td>'+x.ownership+'</td><td>'+x.pause+'</td><td>'+x.blacklist+'</td><td>'+x.recovery+'</td></tr>').join('');
-	}
-	function analyzeAdminActor(){
-	const w=$('adminActorFilter').value.trim().toLowerCase();
-	if(!ethers.isAddress(w)){$('adminActorStats').innerHTML='<div class="notice">Enter a valid admin actor address.</div>';return;}
-	const a=adminRows().filter(x=>(x.actor||'').toLowerCase()===w);
-	$('adminActorStats').innerHTML=[
-	["Actor",w],["Admin events",a.length],["Ownership events",a.filter(x=>x.name==='OwnershipTransferred').length],
-	["Pause/unpause",a.filter(x=>['Paused','Unpaused'].includes(x.name)).length],
-	["Blacklist changes",a.filter(x=>['Blacklisted','Unblacklisted'].includes(x.name)).length],
-	["Recovery events",a.filter(x=>['TokenRescued','BNBRescued'].includes(x.name)).length],
-	["First action",a.length?new Date(a.reduce((p,x)=>x.time<p?x.time:p,a[0].time)).toLocaleString():"ó"],
-	["Last action",a.length?new Date(a.reduce((p,x)=>x.time>p?x.time:p,a[0].time)).toLocaleString():"ó"]
-	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
-	}
-	function renderSecurity(){
-	if(!adapter){$('securityOverview').innerHTML='<div class="notice">Load an adapter to view operational status.</div>';return;}
-	const a=adminRows().sort((x,y)=>y.blockNumber-x.blockNumber), s=swapRows().sort((x,y)=>y.blockNumber-x.blockNumber);
-	$('securityOverview').innerHTML=[
-	["Indexed event count",rows.length],["Indexed swap count",s.length],["Indexed admin count",a.length],
-	["Latest swap",s.length?new Date(s[0].time).toLocaleString():"ó"],["Latest admin action",a.length?new Date(a[0].time).toLocaleString():"ó"],
-	["Latest indexed block",rows.length?Math.max(...rows.map(x=>x.blockNumber)).toLocaleString():"ó"],["Scan range",($('fromBlock').value||"ó")+" ? "+($('toBlock').value||"ó")]
-	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
-	}
-	function renderHistorySummary(){
-	const s=swapRows(),a=adminRows(),users=Object.keys(usersMap());
-	const first=rows.length?rows.reduce((p,x)=>x.blockNumber<p.blockNumber?x:p,rows[0]):null;
-	const last=rows.length?rows.reduce((p,x)=>x.blockNumber>p.blockNumber?x:p,rows[0]):null;
-	$('historySummary').innerHTML=[
-	["Indexed events",rows.length],["Swap events",s.length],["Admin events",a.length],["Unique users",users.length],
-	["First indexed block",first?first.blockNumber.toLocaleString():"ó"],["Last indexed block",last?last.blockNumber.toLocaleString():"ó"],
-	["First event time",first?.time?new Date(first.time).toLocaleString():"ó"],["Last event time",last?.time?new Date(last.time).toLocaleString():"ó"]
-	].map(x=>'<div class="stat">'+esc(x[0])+'<b>'+esc(x[1])+'</b></div>').join('');
-	}
-	function renderTables(){
-	const admin=rows.filter(x=>x.kind==='admin').slice().reverse();
-	$('adminTable').innerHTML=admin.map(x=>'<tr><td>'+x.blockNumber.toLocaleString()+'</td><td>'+esc(x.time?new Date(x.time).toLocaleString():"ó")+'</td><td>'+x.name+'</td><td><code>'+esc(x.actor||"ó")+'</code></td><td>'+esc(details(x))+'</td><td><a href="'+txurl(x.transactionHash)+'" target="_blank" rel="noopener">'+short(x.transactionHash)+'</a></td></tr>').join('');
-	}
-	function renderAll(){renderOverviewStats();renderSummary();renderUsers();renderChart();renderTables();renderAdminAnalysis();renderSecurity();renderHistorySummary();}
-	
-	async function scanSpecificEvent(){try{if(!adapter)await loadAdapter();const name=$('eventName').value;const from=Math.max(0,Number($('fromBlock').value||0));const to=Math.min(await provider.getBlockNumber(),Number($('toBlock').value||await provider.getBlockNumber()));const logs=await adapter.queryFilter(adapter.filters[name](),from,to);const times={};for(const l of logs){try{const b=await provider.getBlock(l.blockNumber);times[l.transactionHash]=new Date(Number(b.timestamp)*1000).toISOString()}catch(e){}}$('eventTable').innerHTML=logs.slice().reverse().map(l=>{const x={name,blockNumber:l.blockNumber,transactionHash:l.transactionHash,args:l.args,time:times[l.transactionHash]||''};return '<tr><td>'+l.blockNumber.toLocaleString()+'</td><td>'+esc(new Date(x.time).toLocaleString())+'</td><td>'+name+'</td><td>'+esc(details(x))+'</td><td><a href="'+txurl(l.transactionHash)+'" target="_blank" rel="noopener">'+short(l.transactionHash)+'</a></td></tr>'}).join('');$('eventStatus').textContent=logs.length+' '+name+' event(s) found.';}catch(e){$('eventStatus').textContent='Error: '+err(e)}}
-	function analyzeWallet(){const w=$('walletFilter').value.trim().toLowerCase();if(!ethers.isAddress(w)){$('walletStats').innerHTML='<div class="notice">Enter a valid wallet address.</div>';return;}const s=swapRows().filter(x=>String(x.args.user??x.args[0]).toLowerCase()===w);let b=0,bo=0,si=0,so=0; s.forEach(x=>{const a=x.args;if(Boolean(a.isBuy??a[1])){b+=Number(ethers.formatUnits(a.inputAmount??a[2],18));bo+=Number(ethers.formatUnits(a.outputAmount??a[3],6));}else{si+=Number(ethers.formatUnits(a.inputAmount??a[2],6));so+=Number(ethers.formatUnits(a.outputAmount??a[3],18));}});$('walletStats').innerHTML=[["Wallet",w],["Transactions",s.length],["Buys",s.filter(x=>Boolean(x.args.isBuy??x.args[1])).length],["Sells",s.filter(x=>!Boolean(x.args.isBuy??x.args[1])).length],["USDT buy volume",b.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT'],["INRP bought",bo.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP'],["INRP sold",si.toLocaleString(undefined,{maximumFractionDigits:6})+' INRP'],["USDT sell output",so.toLocaleString(undefined,{maximumFractionDigits:6})+' USDT'],["First activity",s.length?new Date(s.reduce((p,x)=>x.time<p?x.time:p,s[0].time)).toLocaleString():"ó"],["Last activity",s.length?new Date(s.reduce((p,x)=>x.time>p?x.time:p,s[0].time)).toLocaleString():"ó"]].map(x=>'<div class="stat">'+x[0]+'<b>'+esc(x[1])+'</b></div>').join('')}
-	function csv(rows,headers,name){const out=[headers.join(','),...rows.map(r=>headers.map(h=>JSON.stringify(r[h]??'')).join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out],{type:'text/csv'}));a.download=name+'.csv';a.click();URL.revokeObjectURL(a.href)}
-	function adapterAddressValue(){return addr($('adapterAddress').value.trim())}
-	function setScanLinks(){
-	try{
-	const a=adapterAddressValue();
-	const u='https://bscscan.com/address/'+a;
-	$('adapterScan').href=u;
-	}catch(e){$('adapterScan').href='#'}
-	$('poolScan').href='https://bscscan.com/address/'+V21_POOL;
-	$('poolScan2').href='https://bscscan.com/address/'+V21_POOL;
-	}
-	async function copyText(v,label){try{await navigator.clipboard.writeText(v);setStatus(label+" copied.");}catch(e){setStatus("Copy failed: "+err(e));}}
-	
-	$('loadAdapter').onclick=async()=>{await loadAdapter();try{setScanLinks()}catch(e){}};
-	$('refreshState').onclick=()=>refreshState().catch(e=>setStatus('Error: '+err(e)));
-	$('scanHistory').onclick=scanHistory;
-	$('period').onchange=renderChart;
-	$('metric').onchange=renderChart;
-	$('scanEvent').onclick=scanSpecificEvent;
-	$('analyzeWallet').onclick=analyzeWallet;
-	$('analyzeAdminActor').onclick=analyzeAdminActor;
-	$('clearCache').onclick=()=>{localStorage.removeItem(CACHE_KEY);rows=[];renderAll();$('cacheStatus').textContent='Local analytics cache cleared.'};
-	$('copyAdapter').onclick=()=>{try{copyText(adapterAddressValue(),'Adapter address')}catch(e){setStatus('Enter a valid Adapter address first.')}};
-	$('copyPool').onclick=()=>copyText(V21_POOL,'V21 pool address');
-	$('exportEvents').onclick=()=>csv(rows.map(x=>({block:x.blockNumber,time:x.time,event:x.name,actor:x.actor||'',details:details(x),tx:x.transactionHash})),['block','time','event','actor','details','tx'],'adapter-events');
-	$('exportUsers').onclick=()=>{const a=Object.values(usersMap());csv(a,['wallet','buys','sells','tx','buyInput','sellOutput','inrpBought','inrpSold','first','last'],'adapter-users')};
-	$('exportAll').onclick=()=>csv(rows.map(x=>({block:x.blockNumber,time:x.time,event:x.name,kind:x.kind,actor:x.actor||'',details:details(x),tx:x.transactionHash})),['block','time','event','kind','actor','details','tx'],'adapter-all-events');
-	$('exportSwaps').onclick=()=>csv(swapRows().map(x=>{const a=x.args;return {block:x.blockNumber,time:x.time,user:a.user??a[0],type:Boolean(a.isBuy??a[1])?'BUY':'SELL',input:a.inputAmount??a[2],output:a.outputAmount??a[3],minOutput:a.minOutput??a[4],tx:x.transactionHash}}),['block','time','user','type','input','output','minOutput','tx'],'adapter-swaps');
-	$('exportUsers2').onclick=()=>{const a=Object.values(usersMap());csv(a,['wallet','buys','sells','tx','buyInput','sellOutput','inrpBought','inrpSold','first','last'],'adapter-users')};
-	$('exportAdmin').onclick=()=>csv(adminRows().map(x=>({block:x.blockNumber,time:x.time,event:x.name,actor:x.actor||'',details:details(x),tx:x.transactionHash})),['block','time','event','actor','details','tx'],'adapter-admin');
-	$('exportAdmin2').onclick=()=>csv(adminRows().map(x=>({block:x.blockNumber,time:x.time,event:x.name,actor:x.actor||'',details:details(x),tx:x.transactionHash})),['block','time','event','actor','details','tx'],'adapter-admin');
-	$('adapterAddress').addEventListener('change',()=>{try{setScanLinks()}catch(e){}});
-	loadCache();
-	</script>
-	</body>
-	</html>
-	
-
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Adapter V2 ‚Äî Advanced Analytics Dashboard</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#18202a;--muted:#637080;--line:#e1e6eb;--dark:#18202a;--blue:#2457d6;--green:#147a45;--red:#a42a2a;--amber:#8b5b00}*{box-sizing:border-box}body{font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;max-width:1440px;margin:auto;padding:22px;background:var(--bg);color:var(--ink)}h1{font-size:28px;margin:0 0 6px}h2{font-size:19px;margin:0 0 14px}h3{font-size:15px;margin:16px 0 8px}.sub,.small,.muted{color:var(--muted);font-size:13px}.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:18px;margin:14px 0;box-shadow:0 2px 8px #18202a08}.row{display:flex;gap:12px;flex-wrap:wrap}.field{flex:1;min-width:180px}label{display:block;font-size:12px;font-weight:650;color:#4c5867;margin:7px 0 4px}input,select,button{width:100%;padding:10px 11px;border:1px solid #cbd3dc;border-radius:8px;background:#fff;color:var(--ink);font:inherit;font-size:13px}button{cursor:pointer;font-weight:650}button.primary{background:var(--dark);color:#fff;border-color:var(--dark)}button.secondary{background:#fff}button:disabled{opacity:.5;cursor:not-allowed}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.actions button,.actions a{width:auto}.link{display:inline-block;padding:9px 11px;border:1px solid #cbd3dc;border-radius:8px;text-decoration:none;color:var(--ink);font-size:13px;font-weight:650}.notice{padding:11px 13px;background:#f0f3f7;border-radius:9px;margin:10px 0;font-size:13px;line-height:1.5}.warnbox{background:#fff8e8;border:1px solid #f0d99c}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.stat{border:1px solid var(--line);border-radius:10px;padding:12px;min-width:0}.stat span{display:block;color:var(--muted);font-size:12px}.stat b{display:block;font-size:17px;margin-top:5px;overflow-wrap:anywhere}.stat .tiny{font-size:12px}.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0}.tabs a{font-size:12px;padding:7px 10px;border-radius:20px;background:#e9edf2;color:#344052;text-decoration:none}.progress{height:8px;background:#e8edf2;border-radius:8px;overflow:hidden;margin:9px 0}.progress div{height:100%;width:0;background:var(--blue);transition:width .15s}.table-wrap{overflow:auto;max-height:480px;border:1px solid var(--line);border-radius:9px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 10px;border-bottom:1px solid #edf0f3;text-align:left;white-space:nowrap}th{position:sticky;top:0;background:#f8fafc;z-index:1;color:#4d5968}td.wrap{white-space:normal;min-width:220px;max-width:420px;overflow-wrap:anywhere}.pill{display:inline-block;padding:3px 7px;border-radius:20px;background:#edf1f5;font-size:11px}.ok{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--amber)}.hidden{display:none!important}.chart{height:270px;min-height:220px;border:1px solid var(--line);border-radius:9px;padding:12px;overflow:auto}.bars{display:flex;align-items:flex-end;gap:9px;height:160px;min-width:500px;padding:10px 4px 0}.barcol{flex:1;min-width:28px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}.bar{width:100%;background:#354b73;border-radius:5px 5px 0 0;min-height:2px}.barlabel{font-size:10px;color:var(--muted);margin-top:5px;max-width:70px;overflow:hidden;text-overflow:ellipsis}.barvalue{font-size:10px;margin-bottom:3px}.split{display:grid;grid-template-columns:1fr 1fr;gap:12px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;overflow-wrap:anywhere}.right{float:right}@media(max-width:720px){.chart{height:230px}body{padding:12px}.split{grid-template-columns:1fr}h1{font-size:23px}}
+</style></head>
+<body>
+<header><h1>Fixed Rate USDT / INRP ‚Äî Adapter V2 Analytics</h1><div class="sub">Read-only contract analytics ¬∑ BNB Smart Chain ¬∑ Chain ID 56</div></header>
+<div class="card" id="connection">
+ <div class="notice"><b>Read-only dashboard.</b> No wallet connection or transaction signing is needed. Contract storage reads show current state; historical charts and event tables are derived from the selected adapter event scan range. This dashboard does not infer adapter users from the linked pool's events.</div>
+ <div class="row"><div class="field"><label>Adapter V2 contract</label><input id="adapterAddress" value="0xebCB8017BFF337C52cB80F3158936D6FAd5E0F19"></div><div class="field"><label>BNB Chain RPC URL</label><input id="rpcUrl" value="https://bsc-dataseed.binance.org"></div></div>
+ <div class="row"><div class="field"><label>Analytics period</label><select id="rangePreset"><option value="30d" selected>Last 30 days (default)</option><option value="7d">Last 7 days</option><option value="90d">Last 90 days</option><option value="all">All-time (from deployment)</option><option value="custom">Custom date range</option></select></div><div class="field" id="customStartWrap" style="display:none"><label>Start date</label><input id="customStart" type="date"></div><div class="field" id="customEndWrap" style="display:none"><label>End date</label><input id="customEnd" type="date"></div><div class="field"><label>Deployment block (required for all-time)</label><input id="fromBlock" type="number" min="0" placeholder="Enter verified deployment block"></div><div class="field"><label>Log query chunk size</label><input id="chunkSize" type="number" min="100" max="50000" value="2500"></div></div><div class="small" id="rangeDescription">Default view: last 30 days. Historical chart data is built from adapter events in the selected period.</div>
+ <div class="actions"><button class="primary" id="loadBtn">Connect / Load V2</button><button id="refreshBtn">Refresh current state</button><button id="scanBtn">Scan selected period</button><button id="clearBtn">Clear cached history</button></div>
+ <div id="status" class="small">Ready. Enter a deployment block before scanning the full history.</div><div class="progress"><div id="progressBar"></div></div>
+</div>
+<nav class="tabs"><a href="#overview">Overview</a><a href="#trades">Trade analytics</a><a href="#partners">Partners</a><a href="#users">Users</a><a href="#fees">Fees & treasury</a><a href="#security">Security & admin</a><a href="#events">Event explorer</a></nav>
+<section class="card" id="overview"><h2>Adapter configuration & current state</h2><div class="actions"><a class="link" id="adapterScan" target="_blank" rel="noopener">Open adapter on BscScan ‚Üó</a><button id="copyAdapter">Copy adapter address</button></div><div class="grid" id="overviewGrid"><div class="notice">Load the contract to populate current state.</div></div><div class="notice" id="tokenNotice">Token addresses and decimals are read from the adapter and ERC-20 contracts; dashboard assumes no fixed token addresses.</div></section>
+<section class="card" id="trades"><h2>Global trade analytics</h2><div class="small">Lifetime contract totals are shown below. The charts and period KPIs use the selected historical event range.</div><div class="grid" id="globalStats"></div><h3>Selected-period activity</h3><div class="grid" id="periodStats"><div class="notice">Scan history to calculate selected-period metrics.</div></div><div class="row"><div class="field"><label>Chart bucket</label><select id="bucket"><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select></div></div><div class="split"><div><h3>Trade count over time</h3><div class="chart"><canvas id="tradeCountChart"></canvas></div></div><div><h3>Buy volume over time ¬∑ USDT</h3><div class="chart"><canvas id="buyVolumeChart"></canvas></div></div><div><h3>Sell volume over time ¬∑ INRP</h3><div class="chart"><canvas id="sellVolumeChart"></canvas></div></div><div><h3>Fees accrued over time ¬∑ token-specific</h3><div class="chart"><canvas id="feeVolumeChart"></canvas></div></div></div><h3>Buy / sell lifetime comparison</h3><div class="grid" id="tradeSplit"></div><div class="notice">Buy volume is denominated in USDT; sell volume is denominated in INRP. They are intentionally not added together or presented as one currency. Historical trade attribution is counted from AnalyticsTradeRecorded only; BuyForwarded and SellForwarded events are not double-counted.</div></section>
+<section class="card" id="partners"><h2>Partner analytics</h2><h3>Top partners by attributed trades</h3><div class="chart"><canvas id="partnerChart"></canvas></div><div class="notice">V2 exposes partner-level volume and fee analytics. The ABI does not expose V3-style partner registration, referral-code management, payout settings or partner commission claims.</div><div class="row"><div class="field"><label>Partner wallet address</label><input id="partnerAddress" placeholder="0x..."></div><div class="field"><label>&nbsp;</label><button id="partnerBtn" class="primary">Analyze partner</button></div></div><div class="grid" id="partnerStats"></div><h3>Partners observed in scanned trade attribution events</h3><div class="table-wrap"><table><thead><tr><th>Partner</th><th>Attributed trades</th><th>Buy volume (USDT)</th><th>Sell volume (INRP)</th><th>First seen</th><th>Last seen</th></tr></thead><tbody id="partnerTable"><tr><td colspan="6" class="muted">Scan history to index partner addresses.</td></tr></tbody></table></div></section>
+<section class="card" id="users"><h2>User analytics</h2><div class="row"><div class="field"><label>User wallet address</label><input id="userAddress" placeholder="0x..."></div><div class="field"><label>&nbsp;</label><button id="userBtn" class="primary">Analyze user</button></div></div><div class="grid" id="userStats"></div><h3>Users observed in scanned trade attribution events</h3><div class="table-wrap"><table><thead><tr><th>User</th><th>Trades</th><th>Buys</th><th>Sells</th><th>First seen</th><th>Last seen</th></tr></thead><tbody id="userTable"><tr><td colspan="6" class="muted">Scan history to index users.</td></tr></tbody></table></div></section>
+<section class="card" id="fees"><h2>Fees & treasury accounting</h2><div class="grid" id="feeOverview"></div><h3>USDT fee accounting</h3><div class="grid" id="usdtAccounting"></div><h3>INRP fee accounting</h3><div class="grid" id="inrpAccounting"></div><h3>Fee and withdrawal events</h3><div class="table-wrap"><table><thead><tr><th>Block</th><th>Event</th><th>Token / recipient</th><th>Trade amount</th><th>Fee / amount</th><th>Transaction</th></tr></thead><tbody id="feeEvents"><tr><td colspan="6" class="muted">Scan history to populate fee events.</td></tr></tbody></table></div><div class="notice">Fee accounting is token-specific. ‚ÄúAccrued‚Äù contract balances, lifetime generated fees, automatic transfers, lifetime accumulated amounts, withdrawals and outstanding balances are separate fields and should not be treated as interchangeable.</div></section>
+<section class="card" id="security"><h2>Security & operational status</h2><div class="grid" id="securityGrid"></div><h3>Address blacklist check</h3><div class="row"><div class="field"><label>Wallet address</label><input id="blacklistAddress" placeholder="0x..."></div><div class="field"><label>&nbsp;</label><button id="blacklistBtn">Check blacklist status</button></div></div><div id="blacklistResult" class="notice">Enter an address to query <code>blacklisted(address)</code>.</div><h3>Admin activity summary</h3><div class="grid" id="adminStats"></div><div class="table-wrap"><table><thead><tr><th>Block</th><th>Event</th><th>Actor / account</th><th>Details</th><th>Transaction</th></tr></thead><tbody id="adminTable"><tr><td colspan="5" class="muted">Scan history to populate admin activity.</td></tr></tbody></table></div></section>
+<section class="card" id="events"><h2>Adapter V2 event explorer</h2><div class="row"><div class="field"><label>Event type</label><select id="eventFilter"><option value="all">All scanned events</option></select></div><div class="field"><label>Search address / transaction / text</label><input id="eventSearch" placeholder="Filter loaded events"></div><div class="field"><label>&nbsp;</label><button id="exportEvents">Export filtered events CSV</button></div></div><div class="small" id="eventCount">No indexed events.</div><div class="table-wrap"><table><thead><tr><th>Block</th><th>Event</th><th>Decoded arguments</th><th>Transaction</th></tr></thead><tbody id="eventTable"><tr><td colspan="4" class="muted">No events loaded.</td></tr></tbody></table></div><div class="actions"><button id="exportAll">Export all scanned events CSV</button><button id="exportTrades">Export trade attribution CSV</button></div><div class="small" id="cacheStatus">History cache is stored locally in this browser.</div></section>
+<footer class="small" style="padding:8px 2px 28px">Adapter V2 analytics UI ¬∑ Read-only ¬∑ Verify all figures against the contract and selected block range before relying on them.</footer>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.14.0/dist/ethers.umd.min.js"></script><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+'use strict';
+const CHAIN_ID=56n, CACHE_KEY='adapter_v2_analytics_cache_1';
+const ABI=[
+ 'function owner() view returns(address)','function paused() view returns(bool)','function blacklisted(address) view returns(bool)',
+ 'function INRP() view returns(address)','function POOL() view returns(address)','function USDT() view returns(address)',
+ 'function adapterFeeBps() view returns(uint256)','function automaticFeeTransfer() view returns(bool)',
+ 'function accruedINRPFees() view returns(uint256)','function accruedUSDTFees() view returns(uint256)',
+ 'function adapterBNBBalance() view returns(uint256)','function adapterINRPBalance() view returns(uint256)','function adapterUSDTBalance() view returns(uint256)',
+ 'function getGlobalStats() view returns(uint256 buyVolumeUSDT,uint256 sellVolumeINRP,uint256 buyTrades,uint256 sellTrades,uint256 feesCollectedUSDT,uint256 feesCollectedINRP)',
+ 'function getFeeAccounting(address token) view returns(uint256 lifetimeFeesGenerated,uint256 automaticTransfers,uint256 lifetimeAccumulated,uint256 lifetimeWithdrawals,uint256 outstandingBalance)',
+ 'function getPartnerStats(address partner) view returns(uint256 buyVolumeUSDT,uint256 sellVolumeINRP,uint256 buyTrades,uint256 sellTrades,uint256 adapterFeesGeneratedUSDT,uint256 adapterFeesGeneratedINRP)',
+ 'function getUserStats(address user) view returns(uint256 buyVolumeUSDT,uint256 sellVolumeINRP,uint256 buyTrades,uint256 sellTrades,uint256 feesPaidUSDT,uint256 feesPaidINRP)',
+ 'function getUserTradeCounts(address user) view returns(uint256 buyTrades,uint256 sellTrades)',
+ 'function getNonce(address user) view returns(uint256)','function nonces(address user) view returns(uint256)',
+ 'function calculateAdapterFee(uint256 amount) view returns(uint256)',
+ 'function totalAccumulatedFeesINRP() view returns(uint256)','function totalAccumulatedFeesUSDT() view returns(uint256)',
+ 'function totalAutomaticFeesINRP() view returns(uint256)','function totalAutomaticFeesUSDT() view returns(uint256)',
+ 'function totalBuyTrades() view returns(uint256)','function totalBuyVolumeUSDT() view returns(uint256)','function totalFeesCollectedINRP() view returns(uint256)','function totalFeesCollectedUSDT() view returns(uint256)','function totalSellTrades() view returns(uint256)','function totalSellVolumeINRP() view returns(uint256)','function totalWithdrawnFeesINRP() view returns(uint256)','function totalWithdrawnFeesUSDT() view returns(uint256)',
+ 'event AdapterFeeAccrued(address indexed user,address indexed token,uint256 tradeAmount,uint256 feeAmount)',
+ 'event AdapterFeeUpdated(uint256 oldFeeBps,uint256 newFeeBps)',
+ 'event AdapterFeesWithdrawn(address indexed token,address indexed recipient,uint256 amount)',
+ 'event AdminAction(address indexed admin,bytes32 indexed action)',
+ 'event AnalyticsTradeRecorded(address indexed user,address indexed partner,bool isBuy,uint256 tradeAmount,uint256 adapterFee)',
+ 'event AutomaticFeeTransferUpdated(bool enabled)',
+ 'event BNBRescued(address indexed recipient,uint256 amount)',
+ 'event Blacklisted(address indexed account)','event OwnershipTransferred(address indexed previousOwner,address indexed newOwner)',
+ 'event Paused(address indexed account)','event SellForwarded(address indexed user,uint256 inrpAmount,uint256 usdtOut,uint256 minUSDTOut,uint256 adapterFee)',
+ 'event TokenRescued(address indexed token,address indexed recipient,uint256 amount)','event TradeAuthorizationUsed(address indexed user,bool indexed isBuy,uint256 amount,uint256 minOut,uint256 maxAdapterFee,uint256 nonce)',
+ 'event Unblacklisted(address indexed account)','event Unpaused(address indexed account)',
+ 'event BuyForwarded(address indexed user,uint256 usdtAmount,uint256 inrpOut,uint256 minINRPOut,uint256 adapterFee)'
+];
+const ERC20=['function decimals() view returns(uint8)','function symbol() view returns(string)','function balanceOf(address) view returns(uint256)'];
+const $=id=>document.getElementById(id); let provider=null,contract=null,tokenInfo={},events=[],blockCache=new Map(),lastScan={from:0,to:0};
+const eventNames=['AdapterFeeAccrued','AdapterFeeUpdated','AdapterFeesWithdrawn','AdminAction','AnalyticsTradeRecorded','AutomaticFeeTransferUpdated','BNBRescued','Blacklisted','BuyForwarded','OwnershipTransferred','Paused','SellForwarded','TokenRescued','TradeAuthorizationUsed','Unblacklisted','Unpaused'];
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const short=a=>a&&a.length>14?a.slice(0,8)+'‚Ä¶'+a.slice(-6):String(a??'‚Äî');
+const fmt=(v,d=18)=>{try{return Number(ethers.formatUnits(v,d)).toLocaleString(undefined,{maximumFractionDigits:6})}catch{return String(v)}};
+const num=v=>{try{return BigInt(v).toLocaleString()}catch{return String(v??'‚Äî')}};
+const txLink=h=>`<a target="_blank" rel="noopener" href="https://bscscan.com/tx/${h}">${short(h)}</a>`;
+const addrLink=a=>`<a target="_blank" rel="noopener" href="https://bscscan.com/address/${a}">${esc(short(a))}</a>`;
+function status(s){$('status').textContent=s}function progress(n){$('progressBar').style.width=Math.max(0,Math.min(100,n))+'%'}function card(label,value,sub=''){return `<div class="stat"><span>${esc(label)}</span><b>${esc(value)}</b>${sub?`<span class="tiny">${esc(sub)}</span>`:''}</div>`}
+function err(e){return e?.shortMessage||e?.reason||e?.message||String(e)}
+function saveCache(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({address:$('adapterAddress').value,from:lastScan.from,to:lastScan.to,events:events.map(e=>({...e,args:e.args}))}))}catch(e){}}
+function csvDownload(name,rows){if(!rows.length){status('Nothing to export.');return}const cols=[...new Set(rows.flatMap(r=>Object.keys(r)))];const csv=[cols.join(','),...rows.map(r=>cols.map(k=>'"'+String(r[k]??'').replace(/"/g,'""')+'"').join(','))].join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function argsObject(log){const out={};log.args.forEach((v,i)=>{const input=log.fragment.inputs[i];let val=typeof v==='bigint'?v.toString():String(v);out[input.name||`arg${i}`]=val});return out}
+async function connect(){const url=$('rpcUrl').value.trim();if(!url)throw Error('Enter an RPC URL.');provider=new ethers.JsonRpcProvider(url,{name:'bnb-smart-chain',chainId:56});const net=await provider.getNetwork();if(net.chainId!==CHAIN_ID)throw Error('RPC network mismatch. Expected BNB Smart Chain chain ID 56.');const address=ethers.getAddress($('adapterAddress').value.trim());contract=new ethers.Contract(address,ABI,provider);$('adapterScan').href='https://bscscan.com/address/'+address;const latest=await provider.getBlockNumber();status(`Connected to BNB Smart Chain. Latest block ${latest.toLocaleString()}.`);await refreshState()}
+async function tokenMeta(address){const t=new ethers.Contract(address,ERC20,provider);const [dec,sym]=await Promise.all([t.decimals().catch(()=>18),t.symbol().catch(()=> 'TOKEN')]);return {address,decimals:Number(dec),symbol:sym,contract:t}}
+async function safeCall(p){try{return await p}catch(e){return null}}
+async function refreshState(){if(!contract)throw Error('Load the adapter first.');const a=await contract.getAddress();const [owner,paused,usdt,inrp,pool,feeBps,auto,accU,accI,bnb,balU,balI,g]=await Promise.all([contract.owner(),contract.paused(),contract.USDT(),contract.INRP(),contract.POOL(),contract.adapterFeeBps(),contract.automaticFeeTransfer(),contract.accruedUSDTFees(),contract.accruedINRPFees(),provider.getBalance(a),contract.adapterUSDTBalance(),contract.adapterINRPBalance(),contract.getGlobalStats()]);tokenInfo.USDT=await tokenMeta(usdt);tokenInfo.INRP=await tokenMeta(inrp);
+$('overviewGrid').innerHTML=[card('Adapter address',a),card('Owner',owner),card('Operational status',paused?'PAUSED':'ACTIVE'),card('Linked pool',pool),card('USDT token',usdt,`${tokenInfo.USDT.symbol} ¬∑ ${tokenInfo.USDT.decimals} decimals`),card('INRP token',inrp,`${tokenInfo.INRP.symbol} ¬∑ ${tokenInfo.INRP.decimals} decimals`),card('Adapter USDT balance',fmt(balU,tokenInfo.USDT.decimals)+' '+tokenInfo.USDT.symbol),card('Adapter INRP balance',fmt(balI,tokenInfo.INRP.decimals)+' '+tokenInfo.INRP.symbol),card('Adapter BNB balance',fmt(bnb,18)+' BNB'),card('Adapter fee rate',(Number(feeBps)/100).toFixed(2)+'%'),card('Automatic fee transfer',auto?'Enabled':'Disabled'),card('Network','BNB Smart Chain ¬∑ 56')].join('');
+$('globalStats').innerHTML=[card('Buy volume',fmt(g.buyVolumeUSDT,tokenInfo.USDT.decimals)+' '+tokenInfo.USDT.symbol),card('Sell volume',fmt(g.sellVolumeINRP,tokenInfo.INRP.decimals)+' '+tokenInfo.INRP.symbol),card('Buy trades',num(g.buyTrades)),card('Sell trades',num(g.sellTrades)),card('Fees collected in USDT',fmt(g.feesCollectedUSDT,tokenInfo.USDT.decimals)+' '+tokenInfo.USDT.symbol),card('Fees collected in INRP',fmt(g.feesCollectedINRP,tokenInfo.INRP.decimals)+' '+tokenInfo.INRP.symbol)].join('');
+$('tradeSplit').innerHTML=[card('Buy-side activity',num(g.buyTrades)+' trades',fmt(g.buyVolumeUSDT,tokenInfo.USDT.decimals)+' '+tokenInfo.USDT.symbol+' input volume'),card('Sell-side activity',num(g.sellTrades)+' trades',fmt(g.sellVolumeINRP,tokenInfo.INRP.decimals)+' '+tokenInfo.INRP.symbol+' input volume')].join('');
+const [totAU,totAI,totWU,totWI,totCU,totCI,totB,totS,totBV,totSV]=await Promise.all([contract.totalAccumulatedFeesUSDT(),contract.totalAccumulatedFeesINRP(),contract.totalWithdrawnFeesUSDT(),contract.totalWithdrawnFeesINRP(),contract.totalAutomaticFeesUSDT(),contract.totalAutomaticFeesINRP(),contract.totalBuyTrades(),contract.totalSellTrades(),contract.totalBuyVolumeUSDT(),contract.totalSellVolumeINRP()]);
+$('feeOverview').innerHTML=[card('Fee rate',(Number(feeBps)/100).toFixed(2)+'%'),card('Automatic transfer',auto?'Enabled':'Disabled'),card('Accrued USDT',fmt(accU,tokenInfo.USDT.decimals)+' '+tokenInfo.USDT.symbol),card('Accrued INRP',fmt(accI,tokenInfo.INRP.decimals)+' '+tokenInfo.INRP.symbol),card('Adapter USDT token balance',fmt(balU,tokenInfo.USDT.decimals)),card('Adapter INRP token balance',fmt(balI,tokenInfo.INRP.decimals)),card('Accumulated fees ¬∑ USDT',fmt(totAU,tokenInfo.USDT.decimals)),card('Accumulated fees ¬∑ INRP',fmt(totAI,tokenInfo.INRP.decimals)),card('Withdrawn fees ¬∑ USDT',fmt(totWU,tokenInfo.USDT.decimals)),card('Withdrawn fees ¬∑ INRP',fmt(totWI,tokenInfo.INRP.decimals)),card('Automatic fees ¬∑ USDT',fmt(totCU,tokenInfo.USDT.decimals)),card('Automatic fees ¬∑ INRP',fmt(totCI,tokenInfo.INRP.decimals))].join('');
+$('securityGrid').innerHTML=[card('Owner',owner),card('Paused',paused?'Yes':'No'),card('Adapter fee BPS',num(feeBps)),card('Automatic fee transfer',auto?'Enabled':'Disabled'),card('Linked pool',pool),card('Current BNB balance',fmt(bnb,18)+' BNB')].join('');
+await renderAccounting('USDT',usdt);await renderAccounting('INRP',inrp);status('Current contract state refreshed successfully.')}
+async function renderAccounting(symbol,address){const d=tokenInfo[symbol].decimals,s=tokenInfo[symbol].symbol,ac=await contract.getFeeAccounting(address);const html=[card('Lifetime fees generated',fmt(ac.lifetimeFeesGenerated,d)+' '+s),card('Automatic transfers',fmt(ac.automaticTransfers,d)+' '+s),card('Lifetime accumulated',fmt(ac.lifetimeAccumulated,d)+' '+s),card('Lifetime withdrawals',fmt(ac.lifetimeWithdrawals,d)+' '+s),card('Outstanding balance',fmt(ac.outstandingBalance,d)+' '+s)].join('');$(symbol.toLowerCase()+'Accounting').innerHTML=html}
+async function blockAtOrAfter(timestamp, latest){let lo=0,hi=latest;while(lo<hi){const mid=Math.floor((lo+hi)/2);const b=await provider.getBlock(mid);if(!b)throw Error('Unable to read block timestamp while resolving date range.');if(Number(b.timestamp)<timestamp)lo=mid+1;else hi=mid;}return lo;}
+async function scanHistory(){if(!contract)await connect();const latest=await provider.getBlockNumber(),preset=$('rangePreset').value,chunk=Math.max(100,Math.min(50000,Number($('chunkSize').value||2500)));let from=0,to=latest,now=Math.floor(Date.now()/1000),startTs=now-30*86400,endTs=now;
+if(preset==='all'){const deployment=Number($('fromBlock').value);if(!Number.isSafeInteger(deployment)||deployment<0||deployment>latest)throw Error('Enter a valid verified deployment block for all-time history.');from=deployment;startTs=0;}
+else if(preset==='7d'){startTs=now-7*86400;from=await blockAtOrAfter(startTs,latest);}
+else if(preset==='90d'){startTs=now-90*86400;from=await blockAtOrAfter(startTs,latest);}
+else if(preset==='30d'){startTs=now-30*86400;from=await blockAtOrAfter(startTs,latest);}
+else if(preset==='custom'){const sd=$('customStart').value,ed=$('customEnd').value;if(!sd||!ed)throw Error('Choose both custom start and end dates.');startTs=Math.floor(new Date(sd+'T00:00:00').getTime()/1000);endTs=Math.floor(new Date(ed+'T23:59:59').getTime()/1000);if(!Number.isFinite(startTs)||!Number.isFinite(endTs)||startTs>endTs)throw Error('Invalid custom date range.');from=await blockAtOrAfter(startTs,latest);to=endTs>=Number((await provider.getBlock(latest)).timestamp)?latest:Math.min(latest,await blockAtOrAfter(endTs+1,latest)-1);}
+if(from>to)throw Error('The selected date range does not contain available blocks.');events=[];lastScan={from,to};progress(0);let done=0;const iface=contract.interface,address=await contract.getAddress();for(let start=from;start<=to;start+=chunk){const end=Math.min(to,start+chunk-1);const logs=await provider.getLogs({address,fromBlock:start,toBlock:end,topics:[[...eventNames.map(n=>iface.getEvent(n).topicHash)]]});for(const raw of logs){try{const parsed=iface.parseLog(raw);if(parsed)events.push({name:parsed.name,blockNumber:raw.blockNumber,transactionHash:raw.transactionHash,args:argsObject(parsed),time:null})}catch(e){}}
+done=end-from+1;progress(done/(to-from+1)*100);status(`Scanning adapter logs ¬∑ blocks ${start.toLocaleString()}‚Äì${end.toLocaleString()} ¬∑ ${events.length.toLocaleString()} events`)}
+events.sort((a,b)=>a.blockNumber-b.blockNumber);const unique=[...new Set(events.map(e=>e.blockNumber))];for(let i=0;i<unique.length;i+=30){const batch=unique.slice(i,i+30);await Promise.all(batch.map(async n=>{try{const b=await provider.getBlock(n);blockCache.set(n,b?.timestamp||null)}catch{blockCache.set(n,null)}}))}for(const e of events){const ts=blockCache.get(e.blockNumber);e.time=ts?new Date(ts*1000).toISOString():''}saveCache();renderEvents();renderDerived();const fromDate=events.find(e=>e.time)?.time?.slice(0,10)||new Date(startTs*1000).toISOString().slice(0,10);const toDate=new Date(endTs*1000).toISOString().slice(0,10);$('cacheStatus').textContent=`Indexed ${events.length.toLocaleString()} events from blocks ${from.toLocaleString()}‚Äì${to.toLocaleString()}. Cached locally in this browser.`;$('rangeDescription').textContent=`Selected period: ${preset==='all'?'All-time':fromDate+' to '+toDate} ¬∑ blocks ${from.toLocaleString()}‚Äì${to.toLocaleString()}.`;status(`History scan complete ¬∑ ${events.length.toLocaleString()} events indexed.`)}
+function tradeRows(){return events.filter(e=>e.name==='AnalyticsTradeRecorded')}
+function renderDerived(){const tr=tradeRows(),users=new Map(),partners=new Map();for(const e of tr){const u=e.args.user,p=e.args.partner,isBuy=e.args.isBuy==='true',amount=BigInt(e.args.tradeAmount||0);if(!users.has(u))users.set(u,{address:u,trades:0,buys:0,sells:0,first:e.time,last:e.time});const x=users.get(u);x.trades++;isBuy?x.buys++:x.sells++;x.last=e.time;if(!partners.has(p))partners.set(p,{address:p,trades:0,buys:0,sells:0,buyVol:0n,sellVol:0n,first:e.time,last:e.time});const y=partners.get(p);y.trades++;if(isBuy){y.buys++;y.buyVol+=amount}else{y.sells++;y.sellVol+=amount}y.last=e.time}
+$('userTable').innerHTML=[...users.values()].sort((a,b)=>b.trades-a.trades).map(x=>`<tr><td>${addrLink(x.address)}</td><td>${x.trades}</td><td>${x.buys}</td><td>${x.sells}</td><td>${esc(x.first||'')}</td><td>${esc(x.last||'')}</td></tr>`).join('')||'<tr><td colspan="6">No AnalyticsTradeRecorded events in selected range.</td></tr>';
+$('partnerTable').innerHTML=[...partners.values()].sort((a,b)=>b.trades-a.trades).map(x=>`<tr><td>${addrLink(x.address)}</td><td>${x.trades}</td><td>${fmt(x.buyVol,tokenInfo.USDT?.decimals??18)}</td><td>${fmt(x.sellVol,tokenInfo.INRP?.decimals??6)}</td><td>${esc(x.first||'')}</td><td>${esc(x.last||'')}</td></tr>`).join('')||'<tr><td colspan="6">No partner attribution found in selected range.</td></tr>';
+const adminNames=['AdminAction','AdapterFeeUpdated','AutomaticFeeTransferUpdated','OwnershipTransferred','Paused','Unpaused','Blacklisted','Unblacklisted','TokenRescued','BNBRescued','AdapterFeesWithdrawn'];const admins=events.filter(e=>adminNames.includes(e.name));$('adminStats').innerHTML=[card('Indexed adapter events',num(events.length)),card('Trade attribution events',num(tr.length)),card('Admin / treasury events',num(admins.length)),card('Unique users',num(users.size)),card('Unique partners',num(partners.size)),card('Scanned block range',`${lastScan.from.toLocaleString()} ‚Äì ${lastScan.to.toLocaleString()}`)].join('');$('adminTable').innerHTML=admins.slice().reverse().map(e=>`<tr><td>${e.blockNumber.toLocaleString()}</td><td>${esc(e.name)}</td><td>${esc(e.args.admin||e.args.account||e.args.previousOwner||e.args.token||'‚Äî')}</td><td class="wrap">${esc(JSON.stringify(e.args))}</td><td>${txLink(e.transactionHash)}</td></tr>`).join('')||'<tr><td colspan="5">No admin events in selected range.</td></tr>';
+const fee=events.filter(e=>['AdapterFeeAccrued','AdapterFeesWithdrawn'].includes(e.name));$('feeEvents').innerHTML=fee.slice().reverse().map(e=>{const a=e.args;return `<tr><td>${e.blockNumber.toLocaleString()}</td><td>${e.name}</td><td>${esc(a.token||a.recipient||'‚Äî')}</td><td>${a.tradeAmount?esc(a.tradeAmount):'‚Äî'}</td><td>${esc(a.feeAmount||a.amount||'‚Äî')}</td><td>${txLink(e.transactionHash)}</td></tr>`}).join('')||'<tr><td colspan="6">No fee events in selected range.</td></tr>';
+renderChart();}
+const chartInstances={};function drawChart(id,type,labels,datasets){if(!window.Chart)return;const el=$(id);if(!el)return;if(chartInstances[id])chartInstances[id].destroy();chartInstances[id]=new Chart(el,{type,data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:datasets.length>1,labels:{color:'#64748b'}},tooltip:{enabled:true}},scales:{x:{ticks:{color:'#64748b',maxRotation:0,autoSkip:true},grid:{display:false}},y:{beginAtZero:true,ticks:{color:'#64748b'},grid:{color:'#e8edf3'}}}}});}
+function renderChart(){const tr=tradeRows().filter(e=>e.time),bucket=$('bucket').value,groups=new Map();for(const e of tr){const dt=new Date(e.time);let key;if(bucket==='day')key=dt.toISOString().slice(0,10);else if(bucket==='month')key=dt.toISOString().slice(0,7);else{const d=new Date(Date.UTC(dt.getUTCFullYear(),dt.getUTCMonth(),dt.getUTCDate()));d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));key=d.toISOString().slice(0,10)}if(!groups.has(key))groups.set(key,{count:0,buy:0n,sell:0n});const g=groups.get(key);g.count++;if(e.args.isBuy==='true')g.buy+=BigInt(e.args.tradeAmount||0);else g.sell+=BigInt(e.args.tradeAmount||0)}const arr=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0]));const labels=arr.map(x=>x[0]);const counts=arr.map(x=>x[1].count),buys=arr.map(x=>Number(ethers.formatUnits(x[1].buy,tokenInfo.USDT?.decimals??18))),sells=arr.map(x=>Number(ethers.formatUnits(x[1].sell,tokenInfo.INRP?.decimals??6))),feeEvents=events.filter(e=>e.name==='AdapterFeeAccrued'&&e.time),feeGroups=new Map();for(const e of feeEvents){const dt=new Date(e.time);let key=bucket==='day'?dt.toISOString().slice(0,10):bucket==='month'?dt.toISOString().slice(0,7):(()=>{const d=new Date(Date.UTC(dt.getUTCFullYear(),dt.getUTCMonth(),dt.getUTCDate()));d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return d.toISOString().slice(0,10)})();if(!feeGroups.has(key))feeGroups.set(key,{usdt:0n,inrp:0n});const token=(e.args.token||'').toLowerCase();if(tokenInfo.USDT?.address?.toLowerCase()===token)feeGroups.get(key).usdt+=BigInt(e.args.feeAmount||0);else if(tokenInfo.INRP?.address?.toLowerCase()===token)feeGroups.get(key).inrp+=BigInt(e.args.feeAmount||0)}const feeUsdt=labels.map(k=>Number(ethers.formatUnits(feeGroups.get(k)?.usdt||0n,tokenInfo.USDT?.decimals??18))),feeInrp=labels.map(k=>Number(ethers.formatUnits(feeGroups.get(k)?.inrp||0n,tokenInfo.INRP?.decimals??6)));
+if(!arr.length){$('periodStats').innerHTML='<div class="notice">No AnalyticsTradeRecorded events in the selected scan range. Verify the adapter address, deployment block and RPC event-query limits.</div>';for(const id of ['tradeCountChart','buyVolumeChart','sellVolumeChart','feeVolumeChart'])if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id]}return;}
+const buyCount=tr.filter(e=>e.args.isBuy==='true').length,sellCount=tr.length-buyCount,buyRaw=tr.filter(e=>e.args.isBuy==='true').reduce((a,e)=>a+BigInt(e.args.tradeAmount||0),0n),sellRaw=tr.filter(e=>e.args.isBuy!=='true').reduce((a,e)=>a+BigInt(e.args.tradeAmount||0),0n);const feeU=feeEvents.filter(e=>(e.args.token||'').toLowerCase()===tokenInfo.USDT?.address?.toLowerCase()).reduce((a,e)=>a+BigInt(e.args.feeAmount||0),0n),feeI=feeEvents.filter(e=>(e.args.token||'').toLowerCase()===tokenInfo.INRP?.address?.toLowerCase()).reduce((a,e)=>a+BigInt(e.args.feeAmount||0),0n);$('periodStats').innerHTML=[card('Attributed trades',num(tr.length)),card('Buy trades',num(buyCount)),card('Sell trades',num(sellCount)),card('Buy volume',fmt(buyRaw,tokenInfo.USDT?.decimals??18)+' USDT'),card('Sell volume',fmt(sellRaw,tokenInfo.INRP?.decimals??6)+' INRP'),card('Fees accrued ¬∑ USDT',fmt(feeU,tokenInfo.USDT?.decimals??18)+' USDT'),card('Fees accrued ¬∑ INRP',fmt(feeI,tokenInfo.INRP?.decimals??6)+' INRP')].join('');
+const lineOpts={};drawChart('tradeCountChart','bar',labels,[{label:'Trades',data:counts,backgroundColor:'#5577b8',borderRadius:4}]);drawChart('buyVolumeChart','line',labels,[{label:'Buy volume ¬∑ USDT',data:buys,borderColor:'#15966b',backgroundColor:'#15966b22',fill:true,tension:.25}]);drawChart('sellVolumeChart','line',labels,[{label:'Sell volume ¬∑ INRP',data:sells,borderColor:'#d18b36',backgroundColor:'#d18b3622',fill:true,tension:.25}]);drawChart('feeVolumeChart','line',labels,[{label:'Fees accrued ¬∑ USDT',data:feeUsdt,borderColor:'#15966b',tension:.25},{label:'Fees accrued ¬∑ INRP',data:feeInrp,borderColor:'#d18b36',tension:.25}]);
+const partnerMap=new Map();for(const e of tr){const p=e.args.partner||'Unknown';partnerMap.set(p,(partnerMap.get(p)||0)+1)}const top=[...partnerMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10);if($('partnerChart'))drawChart('partnerChart','bar',top.map(x=>short(x[0])),[{label:'Attributed trades',data:top.map(x=>x[1]),backgroundColor:'#5577b8',borderRadius:4}]);}
+function renderEvents(){const filter=$('eventFilter').value,search=$('eventSearch').value.trim().toLowerCase();const list=events.filter(e=>(filter==='all'||e.name===filter)&&(!search||(e.name+' '+JSON.stringify(e.args)+' '+e.transactionHash).toLowerCase().includes(search)));$('eventCount').textContent=`Showing ${list.length.toLocaleString()} of ${events.length.toLocaleString()} indexed events.`;$('eventTable').innerHTML=list.slice().reverse().map(e=>`<tr><td>${e.blockNumber.toLocaleString()}</td><td><span class="pill">${esc(e.name)}</span></td><td class="wrap mono">${esc(JSON.stringify(e.args))}</td><td>${txLink(e.transactionHash)}</td></tr>`).join('')||'<tr><td colspan="4">No matching events.</td></tr>'}
+async function analyzePartner(){if(!contract)throw Error('Load the adapter first.');const a=ethers.getAddress($('partnerAddress').value.trim()),s=await contract.getPartnerStats(a);$('partnerStats').innerHTML=[card('Partner',a),card('Buy volume',fmt(s.buyVolumeUSDT,tokenInfo.USDT.decimals)+' '+tokenInfo.USDT.symbol),card('Sell volume',fmt(s.sellVolumeINRP,tokenInfo.INRP.decimals)+' '+tokenInfo.INRP.symbol),card('Buy trades',num(s.buyTrades)),card('Sell trades',num(s.sellTrades)),card('Fees generated ¬∑ USDT',fmt(s.adapterFeesGeneratedUSDT,tokenInfo.USDT.decimals)),card('Fees generated ¬∑ INRP',fmt(s.adapterFeesGeneratedINRP,tokenInfo.INRP.decimals))].join('')}
+async function analyzeUser(){if(!contract)throw Error('Load the adapter first.');const a=ethers.getAddress($('userAddress').value.trim()),[s,counts,nonce,black]=await Promise.all([contract.getUserStats(a),contract.getUserTradeCounts(a),safeCall(contract.getNonce(a)),contract.blacklisted(a)]);$('userStats').innerHTML=[card('User',a),card('Buy volume',fmt(s.buyVolumeUSDT,tokenInfo.USDT.decimals)+' '+tokenInfo.USDT.symbol),card('Sell volume',fmt(s.sellVolumeINRP,tokenInfo.INRP.decimals)+' '+tokenInfo.INRP.symbol),card('Buy trades',num(s.buyTrades)),card('Sell trades',num(s.sellTrades)),card('Fees paid ¬∑ USDT',fmt(s.feesPaidUSDT,tokenInfo.USDT.decimals)),card('Fees paid ¬∑ INRP',fmt(s.feesPaidINRP,tokenInfo.INRP.decimals)),card('Trade counts getter',`${num(counts.buyTrades)} buys / ${num(counts.sellTrades)} sells`),card('Current nonce',nonce===null?'Getter unavailable':num(nonce)),card('Blacklisted',black?'Yes':'No')].join('')}
+async function checkBlacklist(){if(!contract)throw Error('Load the adapter first.');const a=ethers.getAddress($('blacklistAddress').value.trim()),b=await contract.blacklisted(a);$('blacklistResult').innerHTML=`${addrLink(a)} is <b class="${b?'bad':'ok'}">${b?'BLACKLISTED':'not blacklisted'}</b> according to current contract state.`}
+function init(){for(const n of eventNames){const o=document.createElement('option');o.value=n;o.textContent=n;$('eventFilter').appendChild(o)}$('loadBtn').onclick=()=>connect().catch(e=>status('Error: '+err(e)));$('refreshBtn').onclick=()=>refreshState().catch(e=>status('Refresh error: '+err(e)));$('scanBtn').onclick=()=>scanHistory().catch(e=>status('Scan error: '+err(e)));$('partnerBtn').onclick=()=>analyzePartner().catch(e=>status('Partner lookup error: '+err(e)));$('userBtn').onclick=()=>analyzeUser().catch(e=>status('User lookup error: '+err(e)));$('blacklistBtn').onclick=()=>checkBlacklist().catch(e=>status('Blacklist lookup error: '+err(e)));$('eventFilter').onchange=renderEvents;$('eventSearch').oninput=renderEvents;$('bucket').onchange=renderChart;$('rangePreset').onchange=()=>{const c=$('rangePreset').value==='custom';$('customStartWrap').style.display=c?'block':'none';$('customEndWrap').style.display=c?'block':'none';};$('customStart').value=new Date(Date.now()-30*86400000).toISOString().slice(0,10);$('customEnd').value=new Date().toISOString().slice(0,10);$('exportEvents').onclick=()=>{const f=$('eventFilter').value,s=$('eventSearch').value.toLowerCase();csvDownload('adapter-v2-filtered-events.csv',events.filter(e=>(f==='all'||e.name===f)&&(!s||(e.name+JSON.stringify(e.args)+e.transactionHash).toLowerCase().includes(s))).map(e=>({block:e.blockNumber,time:e.time,event:e.name,transaction:e.transactionHash,...e.args})))};$('exportAll').onclick=()=>csvDownload('adapter-v2-all-events.csv',events.map(e=>({block:e.blockNumber,time:e.time,event:e.name,transaction:e.transactionHash,...e.args})));$('exportTrades').onclick=()=>csvDownload('adapter-v2-trade-attribution.csv',tradeRows().map(e=>({block:e.blockNumber,time:e.time,transaction:e.transactionHash,...e.args})));$('copyAdapter').onclick=()=>navigator.clipboard?.writeText($('adapterAddress').value).then(()=>status('Adapter address copied.')).catch(()=>status('Clipboard permission unavailable.'));$('clearBtn').onclick=()=>{events=[];lastScan={from:0,to:0};localStorage.removeItem(CACHE_KEY);renderEvents();renderDerived();$('cacheStatus').textContent='Local event cache cleared.';status('Cached history cleared. Contract state is unchanged.')};try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');if(c?.events?.length&&c.address?.toLowerCase()===$('adapterAddress').value.toLowerCase()){events=c.events;lastScan={from:c.from,to:c.to};renderEvents();$('cacheStatus').textContent=`Restored ${events.length} cached events for the configured adapter. Refresh or rescan to verify current data.`;}}catch(e){}}
+init();
+</script></body></html>
